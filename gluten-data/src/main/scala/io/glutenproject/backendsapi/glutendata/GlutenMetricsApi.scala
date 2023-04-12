@@ -234,6 +234,21 @@ abstract class GlutenMetricsApi extends MetricsApi with Logging{
   override def genWindowTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new WindowMetricsUpdater(metrics)
 
+  override def genWindowTopKFilterTransformerMetrics(
+      sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of window"),
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext, "number of memory allocations"))
+
+  override def genWindowTopKFilterTransformerMetricsUpdater(
+     metrics: Map[String, SQLMetric]): MetricsUpdater = new WindowTopKFilterMetricsUpdater(metrics)
+
   override def genColumnarToRowMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(

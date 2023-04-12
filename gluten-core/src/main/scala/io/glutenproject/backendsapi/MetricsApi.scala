@@ -69,6 +69,10 @@ trait MetricsApi extends Serializable {
 
   def genWindowTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
+  def genWindowTopKFilterTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+
+  def genWindowTopKFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+
   def genColumnarToRowMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genRowToColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric]

@@ -71,6 +71,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarWindow: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.window", "true").toBoolean
 
+  // enable or disable columnar window topk filter
+  def enableColumnarWindowTopKFilter: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.windowtopkfilter", "true").toBoolean
+
   // enable or disable columnar shuffledhashjoin
   def enableColumnarShuffledHashJoin: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffledhashjoin", "true").toBoolean

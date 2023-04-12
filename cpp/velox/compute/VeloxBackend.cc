@@ -103,6 +103,14 @@ void VeloxBackend::setInputPlanNode(const ::substrait::WindowRel& swindow) {
   }
 }
 
+void VeloxBackend::setInputPlanNode(const ::substrait::WindowTopKFilterRel& stopk) {
+  if (stopk.has_input()) {
+    setInputPlanNode(stopk.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
 void VeloxBackend::setInputPlanNode(const ::substrait::AggregateRel& sagg) {
   if (sagg.has_input()) {
     setInputPlanNode(sagg.input());
@@ -209,6 +217,8 @@ void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.fetch());
   } else if (srel.has_window()) {
     setInputPlanNode(srel.window());
+  } else if (srel.has_window_topk_filter()) {
+    setInputPlanNode(srel.window_topk_filter());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }

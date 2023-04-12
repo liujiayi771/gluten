@@ -245,6 +245,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
   val enableColumnarSort: Boolean = !scanOnly && columnarConf.enableColumnarSort
   val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
+  val enableColumnarWindowTopKFilter: Boolean =
+    !scanOnly && columnarConf.enableColumnarWindowTopKFilter
   val enableColumnarSortMergeJoin: Boolean = !scanOnly && columnarConf.enableColumnarSortMergeJoin
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
   val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
@@ -536,6 +538,17 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.windowExpression,
               plan.partitionSpec,
               plan.orderSpec,
+              plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
+        case plan: WindowTopKFilterExec =>
+          if (!enableColumnarWindowTopKFilter) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = WindowTopKFilterExecTransformer(
+              plan.k,
+              plan.partitionExprs,
+              plan.sortOrder,
               plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }

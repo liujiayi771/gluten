@@ -409,6 +409,12 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
           plan.partitionSpec,
           plan.orderSpec,
           replaceWithTransformerPlan(plan.child))
+      case plan: WindowTopKFilterExec =>
+        WindowTopKFilterExecTransformer(
+          plan.k,
+          plan.partitionExprs,
+          plan.sortOrder,
+          replaceWithTransformerPlan(plan.child))
       case plan: GlobalLimitExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
