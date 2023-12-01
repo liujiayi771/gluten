@@ -1091,7 +1091,10 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "covar_pop_merge",
       "covar_samp",
       "covar_samp_merge",
-      "approx_distinct"};
+      "approx_distinct",
+      "approx_distinct",
+      "skewness",
+      "skewness_merge"};
 
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
