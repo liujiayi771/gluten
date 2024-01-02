@@ -69,6 +69,24 @@ case class HashAggregateExecTransformer(
     }
   }
 
+  override def copySelf(
+      requiredChildDistributionExpressions: Option[Seq[Expression]],
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute],
+      initialInputBufferOffset: Int,
+      resultExpressions: Seq[NamedExpression],
+      child: SparkPlan): HashAggregateExecTransformer = {
+    copy(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
+  }
+
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)
   }
@@ -536,21 +554,11 @@ case class HashAggregateExecTransformer(
       validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
 
-    var aggRel = if (needsPreProjection) {
+    var aggRel = if (rowConstructNeeded) {
       aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
+      getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
     } else {
-      if (rowConstructNeeded) {
-        aggParams.preProjectionNeeded = true
-        getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
-      } else {
-        getAggRelWithoutPreProjection(
-          context,
-          originalInputAttributes,
-          operatorId,
-          input,
-          validation)
-      }
+      getAggRelInternal(context, originalInputAttributes, operatorId, input, validation)
     }
 
     if (extractStructNeeded()) {
@@ -558,14 +566,8 @@ case class HashAggregateExecTransformer(
       aggRel = applyExtractStruct(context, aggRel, operatorId, validation)
     }
 
-    val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
-      aggRel
-    } else {
-      aggParams.postProjectionNeeded = true
-      applyPostProjection(context, aggRel, operatorId, validation)
-    }
     context.registerAggregationParam(operatorId, aggParams)
-    resRel
+    aggRel
   }
 
   def isStreaming: Boolean = false
