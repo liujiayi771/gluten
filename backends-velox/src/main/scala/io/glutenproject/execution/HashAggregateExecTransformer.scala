@@ -536,7 +536,7 @@ abstract class HashAggregateExecTransformer(
     val originalInputAttributes = child.output
 
     var aggRel = if (rowConstructNeeded) {
-      aggParams.preProjectionNeeded = true
+      aggParams.rowConstructionNeeded = true
       getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
     } else {
       getAggRelInternal(context, originalInputAttributes, operatorId, input, validation)

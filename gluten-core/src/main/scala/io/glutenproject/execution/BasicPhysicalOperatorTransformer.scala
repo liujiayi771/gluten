@@ -148,18 +148,10 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   }
 }
 
-// This enum is used to identify the project type.
-object ProjectType extends Enumeration {
-  type Config = Value
-  val NORMAL: ProjectType.Value = Value("")
-  val PRE: ProjectType.Value = Value("Pre")
-  val POST: ProjectType.Value = Value("Post")
-}
-
 case class ProjectExecTransformer private (
     projectList: Seq[NamedExpression],
     child: SparkPlan,
-    projectType: ProjectType.Config = ProjectType.NORMAL)
+    isPostProject: Boolean = false)
   extends UnaryTransformSupport
   with OrderPreservingNodeShim
   with PartitioningPreservingNodeShim
@@ -170,22 +162,22 @@ case class ProjectExecTransformer private (
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
-  override def nodeName: String = projectType.toString + super.nodeName
+  override def nodeName: String = if (isPostProject) {
+    "Post" + super.nodeName
+  } else {
+    super.nodeName
+  }
 
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
-    val originalInputAttributes = child match {
-      case agg: HashAggregateExecBaseTransformer if isPostProjection =>
-        agg.postProjectionBindAttributes
-      case _ => child.output
-    }
+
     val relNode =
       getRelNode(
         substraitContext,
         projectList,
-        originalInputAttributes,
+        getInputAttributes(child),
         operatorId,
         null,
         validation = true)
@@ -212,21 +204,22 @@ case class ProjectExecTransformer private (
       return childCtx
     }
 
-    val originalInputAttributes = child match {
-      case agg: HashAggregateExecBaseTransformer if isPostProjection =>
-        agg.postProjectionBindAttributes
-      case _ => child.output
-    }
     val currRel =
       getRelNode(
         context,
         projectList,
-        originalInputAttributes,
+        getInputAttributes(child),
         operatorId,
         childCtx.root,
         validation = false)
     assert(currRel != null, "Project Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
+  }
+
+  private def getInputAttributes(child: SparkPlan) = child match {
+    case agg: HashAggregateExecBaseTransformer if isPostProject =>
+      agg.allAggregateResultAttributes
+    case _ => child.output
   }
 
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
@@ -269,9 +262,6 @@ case class ProjectExecTransformer private (
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
-
-  def isPostProjection: Boolean = projectType == ProjectType.POST
-  def isPreProjection: Boolean = projectType == ProjectType.PRE
 }
 object ProjectExecTransformer {
   private def processProjectExecTransformer(

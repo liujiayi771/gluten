@@ -115,7 +115,7 @@ case class TakeOrderedAndProjectExecTransformer(
         finalLimitPlan
       }
 
-      val finalPlan = ColumnarOverrides.applyRules(
+      val finalPlan = ColumnarOverrides.applyExtendedColumnarPreRules(
         WholeStageTransformer(projectPlan)(transformStageCounter.incrementAndGet()))
 
       finalPlan.executeColumnar()

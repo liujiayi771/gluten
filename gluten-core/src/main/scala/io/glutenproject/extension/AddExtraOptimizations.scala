@@ -14,20 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution
+package io.glutenproject.extension
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
-trait ProjectInsertSupport {
+case class AddExtraOptimizations(sparkSession: SparkSession) extends (LogicalPlan => Unit) {
 
-  def needsPreProjection: Boolean
-
-  def needsPostProjection: Boolean
-
-  def postProjectionBindAttributes: Seq[Attribute] = Seq.empty
-
-  def needsPreProjection(inputs: Seq[Expression]): Boolean = inputs.exists {
-    case _: Attribute => false
-    case _ => true
+  override def apply(plan: LogicalPlan): Unit = {
+    sparkSession.experimental.extraOptimizations = sparkSession.experimental.extraOptimizations ++
+      Seq(InsertPreProject)
   }
 }

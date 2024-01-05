@@ -52,7 +52,7 @@ abstract class HashAggregateExecBaseTransformer(
     child: SparkPlan)
   extends BaseAggregateExec
   with UnaryTransformSupport
-  with ProjectInsertSupport {
+  with AliasHelper {
 
   override lazy val allAttributes: AttributeSeq =
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
@@ -63,7 +63,7 @@ abstract class HashAggregateExecBaseTransformer(
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetrics(sparkContext)
 
   // The direct outputs of Aggregation.
-  protected lazy val allAggregateResultAttributes: List[Attribute] = {
+  lazy val allAggregateResultAttributes: List[Attribute] = {
     val groupingAttributes = groupingExpressions.map(
       expr => {
         ConverterUtils.getAttrFromExpr(expr).toAttribute
@@ -157,34 +157,14 @@ abstract class HashAggregateExecBaseTransformer(
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
   override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
 
-  // Check if Pre-Projection is needed before the Aggregation.
-  override def needsPreProjection: Boolean = {
-    needsPreProjection(groupingExpressions) ||
-    aggregateExpressions.exists {
-      expr =>
-        expr.filter match {
-          case None | Some(_: Attribute) =>
-          case _ => return true
-        }
-        expr.mode match {
-          case Partial =>
-            expr.aggregateFunction.children.exists {
-              case _: Attribute | _: Literal => false
-              case _ => true
-            }
-          // No need to consider pre-projection for PartialMerge and Final Agg.
-          case _ => false
-        }
-    }
-  }
-
   // Check if Post-Projection is needed after the Aggregation.
-  override def needsPostProjection: Boolean = {
+  def needsPostProjection: Boolean = {
     // If the result expressions has different size with output attribute,
     // post-projection is needed.
     resultExpressions.size != allAggregateResultAttributes.size ||
-    // Compare each item in result expressions and output attributes.
-    resultExpressions.zip(allAggregateResultAttributes).exists {
+    // Compare each item in result expressions and output attributes. Attribute in Alias
+    // should be trimmed before checking.
+    resultExpressions.map(trimAliases).zip(allAggregateResultAttributes).exists {
       case (exprAttr: Attribute, resAttr) =>
         // If the result attribute and result expression has different name or type,
         // post-projection is needed.
@@ -195,8 +175,6 @@ abstract class HashAggregateExecBaseTransformer(
         true
     }
   }
-
-  override def postProjectionBindAttributes: Seq[Attribute] = allAggregateResultAttributes
 
   protected def addFunctionNode(
       args: java.lang.Object,

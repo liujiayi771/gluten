@@ -38,8 +38,7 @@ case class SortExecTransformer(
     global: Boolean,
     child: SparkPlan,
     testSpillFrequency: Int = 0)
-  extends UnaryTransformSupport
-  with ProjectInsertSupport {
+  extends UnaryTransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -56,10 +55,6 @@ case class SortExecTransformer(
 
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
-
-  override def needsPreProjection: Boolean = needsPreProjection(sortOrder.map(_.child))
-
-  override def needsPostProjection: Boolean = needsPreProjection
 
   def getRelNode(
       context: SubstraitContext,
