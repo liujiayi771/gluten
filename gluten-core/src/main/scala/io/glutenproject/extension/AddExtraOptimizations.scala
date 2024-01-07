@@ -22,7 +22,9 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 case class AddExtraOptimizations(sparkSession: SparkSession) extends (LogicalPlan => Unit) {
 
   override def apply(plan: LogicalPlan): Unit = {
-    sparkSession.experimental.extraOptimizations = sparkSession.experimental.extraOptimizations ++
-      Seq(InsertPreProject)
+    if (!sparkSession.experimental.extraOptimizations.contains(InsertPreProject)) {
+      sparkSession.experimental.extraOptimizations = sparkSession.experimental.extraOptimizations ++
+        Seq(InsertPreProject)
+    }
   }
 }

@@ -16,11 +16,13 @@
  */
 package io.glutenproject.extension
 
+import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Project, Sort}
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, SORT}
+import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, FILTER, SORT}
 import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
 
 import scala.collection.mutable
@@ -84,41 +86,48 @@ object InsertPreProject extends Rule[LogicalPlan] {
           .toAttribute
     }
 
-  override def apply(plan: LogicalPlan): LogicalPlan = {
-    plan.transformWithPruning(_.containsAnyPattern(AGGREGATE, SORT)) {
-      case agg: Aggregate if needsPreProject(agg) =>
-        val projectExprsMap = mutable.HashMap[ExpressionEquals, NamedExpression]()
+  private def transformAgg(agg: Aggregate): LogicalPlan = {
+    val projectExprsMap = mutable.HashMap[ExpressionEquals, NamedExpression]()
 
-        // Handle groupingExpressions.
-        val newGroupingExpressions =
-          agg.groupingExpressions.toIndexedSeq.map(
-            getAndReplaceProjectAttribute(_, projectExprsMap))
+    // Handle groupingExpressions.
+    val newGroupingExpressions =
+      agg.groupingExpressions.toIndexedSeq.map(getAndReplaceProjectAttribute(_, projectExprsMap))
 
-        // Handle aggregateExpressions
-        val newAggregateExpressions = agg.aggregateExpressions.toIndexedSeq.map {
-          expr =>
-            expr.transformDown {
-              case ae: AggregateExpression =>
-                val newAggFuncChildren = ae.aggregateFunction.children.map {
-                  case literal: Literal => literal
-                  case other => getAndReplaceProjectAttribute(other, projectExprsMap)
-                }
-                val newAggFunc = ae.aggregateFunction
-                  .withNewChildren(newAggFuncChildren)
-                  .asInstanceOf[AggregateFunction]
-                val newFilter =
-                  ae.filter.map(getAndReplaceProjectAttribute(_, projectExprsMap))
-                ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
-              case e if projectExprsMap.contains(ExpressionEquals(e)) =>
-                projectExprsMap(ExpressionEquals(e)).toAttribute
+    // Handle aggregateExpressions
+    val newAggregateExpressions = agg.aggregateExpressions.toIndexedSeq.map {
+      expr =>
+        expr.transformDown {
+          case ae: AggregateExpression =>
+            val newAggFuncChildren = ae.aggregateFunction.children.map {
+              case literal: Literal => literal
+              case other => getAndReplaceProjectAttribute(other, projectExprsMap)
             }
+            val newAggFunc = ae.aggregateFunction
+              .withNewChildren(newAggFuncChildren)
+              .asInstanceOf[AggregateFunction]
+            val newFilter =
+              ae.filter.map(getAndReplaceProjectAttribute(_, projectExprsMap))
+            ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+          case e if projectExprsMap.contains(ExpressionEquals(e)) =>
+            projectExprsMap(ExpressionEquals(e)).toAttribute
         }
+    }
 
-        agg.copy(
-          groupingExpressions = newGroupingExpressions,
-          aggregateExpressions = newAggregateExpressions.asInstanceOf[Seq[NamedExpression]],
-          child = Project(agg.child.output ++ projectExprsMap.values.toSeq, agg.child)
-        )
+    agg.copy(
+      groupingExpressions = newGroupingExpressions,
+      aggregateExpressions = newAggregateExpressions.asInstanceOf[Seq[NamedExpression]],
+      child = Project(agg.child.output ++ projectExprsMap.values.toSeq, agg.child)
+    )
+  }
+
+  override def apply(plan: LogicalPlan): LogicalPlan = {
+    plan.transformWithPruning(_.containsAnyPattern(AGGREGATE, SORT, FILTER)) {
+      case filter: Filter
+          if SparkShimLoader.getSparkShims.hasBloomFilterInFilterCondition(filter) =>
+        SparkShimLoader.getSparkShims.addPreProjectForBloomFilter(filter)(transformAgg)
+
+      case agg: Aggregate if needsPreProject(agg) =>
+        transformAgg(agg)
 
       case sort: Sort if needsPreProject(sort) =>
         val projectExprsMap = mutable.HashMap[ExpressionEquals, NamedExpression]()

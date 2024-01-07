@@ -487,7 +487,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.resultExpressions,
               plan.child
             )
-          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          val allTransformable = InsertPostProject
+            .getTransformedPlan(transformer)
+            .map(_.asInstanceOf[GlutenPlan].doValidate())
+            .reduce(ValidationResult.merge)
+          TransformHints.tag(plan, allTransformable.toTransformHint)
         case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(

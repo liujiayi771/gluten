@@ -69,28 +69,6 @@ abstract class HashAggregateExecTransformer(
     }
   }
 
-  override def copySelf(
-      requiredChildDistributionExpressions: Option[Seq[Expression]],
-      groupingExpressions: Seq[NamedExpression],
-      aggregateExpressions: Seq[AggregateExpression],
-      aggregateAttributes: Seq[Attribute],
-      initialInputBufferOffset: Int,
-      resultExpressions: Seq[NamedExpression],
-      child: SparkPlan): HashAggregateExecTransformer = {
-    copy(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      aggregateExpressions,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      child)
-  }
-
-  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
-    copy(child = newChild)
-  }
-
   /**
    * Returns whether extracting subfield from struct is needed. True when the intermediate type of
    * Velox aggregation is a compound type.
@@ -626,6 +604,26 @@ case class RegularHashAggregateExecTransformer(
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)
   }
+
+  override def copySelf(
+      requiredChildDistributionExpressions: Option[Seq[Expression]],
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute],
+      initialInputBufferOffset: Int,
+      resultExpressions: Seq[NamedExpression],
+      child: SparkPlan): HashAggregateExecTransformer = {
+    val res = copy(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
+    res.copyTagsFrom(this)
+    res
+  }
 }
 
 // Hash aggregation that emits pre-aggregated data which allows duplications on grouping keys
@@ -654,5 +652,23 @@ case class FlushableHashAggregateExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)
+  }
+
+  override def copySelf(
+      requiredChildDistributionExpressions: Option[Seq[Expression]],
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute],
+      initialInputBufferOffset: Int,
+      resultExpressions: Seq[NamedExpression],
+      child: SparkPlan): HashAggregateExecTransformer = {
+    copy(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
   }
 }
