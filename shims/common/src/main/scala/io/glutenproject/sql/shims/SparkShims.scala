@@ -87,8 +87,8 @@ trait SparkShims {
   def hasBloomFilterAggregate(
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean
 
-  def hasBloomFilterInFilterCondition(
-      filter: org.apache.spark.sql.catalyst.plans.logical.Filter): Boolean
+  def needsPreProjectForBloomFilterAgg(filter: org.apache.spark.sql.catalyst.plans.logical.Filter)(
+      needsPreProject: LogicalPlan => Boolean): Boolean
 
   def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan]
 

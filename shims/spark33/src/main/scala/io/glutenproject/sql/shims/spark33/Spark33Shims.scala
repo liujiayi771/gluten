@@ -137,9 +137,14 @@ class Spark33Shims extends SparkShims with PredicateHelper {
       expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate])
   }
 
-  override def hasBloomFilterInFilterCondition(filter: Filter): Boolean = {
+  override def needsPreProjectForBloomFilterAgg(filter: Filter)(
+      needsPreProject: LogicalPlan => Boolean): Boolean = {
     splitConjunctivePredicates(filter.condition).exists {
-      case _: BloomFilterMightContain => true
+      case _ @BloomFilterMightContain(sub: ScalarSubquery, _) =>
+        sub.plan.exists {
+          case agg: Aggregate => needsPreProject(agg)
+          case _ => false
+        }
       case _ => false
     }
   }

@@ -139,9 +139,14 @@ class Spark34Shims extends SparkShims with PredicateHelper {
       expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate])
   }
 
-  override def hasBloomFilterInFilterCondition(filter: Filter): Boolean = {
+  override def needsPreProjectForBloomFilterAgg(filter: Filter)(
+      needsPreProject: LogicalPlan => Boolean): Boolean = {
     splitConjunctivePredicates(filter.condition).exists {
-      case _: BloomFilterMightContain => true
+      case _ @BloomFilterMightContain(sub: ScalarSubquery, _) =>
+        sub.plan.exists {
+          case agg: Aggregate => needsPreProject(agg)
+          case _ => false
+        }
       case _ => false
     }
   }
@@ -162,10 +167,10 @@ class Spark34Shims extends SparkShims with PredicateHelper {
       transformAgg: Aggregate => LogicalPlan): LogicalPlan = {
     val newConditions = splitConjunctivePredicates(filter.condition).map {
       case bloom @ BloomFilterMightContain(sub: ScalarSubquery, _) =>
-        val newSubqueryPlan = sub.plan.transform {
+        val newSubPlan = sub.plan.transform {
           case agg: Aggregate => ConstantFolding(ColumnPruning(transformAgg(agg)))
         }
-        bloom.copy(bloomFilterExpression = sub.copy(plan = newSubqueryPlan))
+        bloom.copy(bloomFilterExpression = sub.copy(plan = newSubPlan))
       case other => other
     }
     filter.copy(condition = newConditions.reduceLeft(And))

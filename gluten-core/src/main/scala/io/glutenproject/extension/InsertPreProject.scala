@@ -123,7 +123,8 @@ object InsertPreProject extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = {
     plan.transformWithPruning(_.containsAnyPattern(AGGREGATE, SORT, FILTER)) {
       case filter: Filter
-          if SparkShimLoader.getSparkShims.hasBloomFilterInFilterCondition(filter) =>
+          if SparkShimLoader.getSparkShims.needsPreProjectForBloomFilterAgg(filter)(
+            needsPreProject) =>
         SparkShimLoader.getSparkShims.addPreProjectForBloomFilter(filter)(transformAgg)
 
       case agg: Aggregate if needsPreProject(agg) =>
