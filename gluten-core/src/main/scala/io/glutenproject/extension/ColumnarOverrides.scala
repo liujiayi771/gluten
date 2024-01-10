@@ -786,6 +786,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       List(
         (spark: SparkSession) => PlanOneRowRelation(spark),
         (_: SparkSession) => FallbackEmptySchemaRelation(),
+        (spark: SparkSession) => RemoveKnownFloatingPointNormalized(spark),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
