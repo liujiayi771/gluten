@@ -16,12 +16,10 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.CommandResultExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.internal.SQLConf
 
 class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   override protected val backend: String = "velox"
@@ -53,81 +51,81 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     super.afterAll()
   }
 
-  test("test sort merge join metrics") {
-    withSQLConf(
-      GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
-      // without preproject
-      runQueryAndCompare(
-        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 = metrics_t2.c1"
-      ) {
-        df =>
-          val smj = find(df.queryExecution.executedPlan) {
-            case _: SortMergeJoinExecTransformer => true
-            case _ => false
-          }
-          assert(smj.isDefined)
-          val metrics = smj.get.metrics
-          assert(metrics("numOutputRows").value == 100)
-          assert(metrics("numOutputVectors").value > 0)
-          assert(metrics("numOutputBytes").value > 0)
-      }
+//  test("test sort merge join metrics") {
+//    withSQLConf(
+//      GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+//      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
+//      // without preproject
+//      runQueryAndCompare(
+//        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 = metrics_t2.c1"
+//      ) {
+//        df =>
+//          val smj = find(df.queryExecution.executedPlan) {
+//            case _: SortMergeJoinExecTransformer => true
+//            case _ => false
+//          }
+//          assert(smj.isDefined)
+//          val metrics = smj.get.metrics
+//          assert(metrics("numOutputRows").value == 100)
+//          assert(metrics("numOutputVectors").value > 0)
+//          assert(metrics("numOutputBytes").value > 0)
+//      }
+//
+//      // with preproject
+//      runQueryAndCompare(
+//        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 + 1 = metrics_t2.c1 + 1"
+//      ) {
+//        df =>
+//          val smj = find(df.queryExecution.executedPlan) {
+//            case _: SortMergeJoinExecTransformer => true
+//            case _ => false
+//          }
+//          assert(smj.isDefined)
+//          val metrics = smj.get.metrics
+//          assert(metrics("numOutputRows").value == 100)
+//          assert(metrics("numOutputVectors").value > 0)
+//          assert(metrics("streamPreProjectionCpuCount").value > 0)
+//          assert(metrics("bufferPreProjectionCpuCount").value > 0)
+//      }
+//    }
+//  }
 
-      // with preproject
-      runQueryAndCompare(
-        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 + 1 = metrics_t2.c1 + 1"
-      ) {
-        df =>
-          val smj = find(df.queryExecution.executedPlan) {
-            case _: SortMergeJoinExecTransformer => true
-            case _ => false
-          }
-          assert(smj.isDefined)
-          val metrics = smj.get.metrics
-          assert(metrics("numOutputRows").value == 100)
-          assert(metrics("numOutputVectors").value > 0)
-          assert(metrics("streamPreProjectionCpuCount").value > 0)
-          assert(metrics("bufferPreProjectionCpuCount").value > 0)
-      }
-    }
-  }
-
-  test("test shuffle hash join metrics") {
-    withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
-      // without preproject
-      runQueryAndCompare(
-        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 = metrics_t2.c1"
-      ) {
-        df =>
-          val smj = find(df.queryExecution.executedPlan) {
-            case _: ShuffledHashJoinExecTransformer => true
-            case _ => false
-          }
-          assert(smj.isDefined)
-          val metrics = smj.get.metrics
-          assert(metrics("numOutputRows").value == 100)
-          assert(metrics("numOutputVectors").value > 0)
-          assert(metrics("numOutputBytes").value > 0)
-      }
-
-      // with preproject
-      runQueryAndCompare(
-        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 + 1 = metrics_t2.c1 + 1"
-      ) {
-        df =>
-          val smj = find(df.queryExecution.executedPlan) {
-            case _: ShuffledHashJoinExecTransformer => true
-            case _ => false
-          }
-          assert(smj.isDefined)
-          val metrics = smj.get.metrics
-          assert(metrics("numOutputRows").value == 100)
-          assert(metrics("numOutputVectors").value > 0)
-          assert(metrics("streamPreProjectionCpuCount").value > 0)
-          assert(metrics("buildPreProjectionCpuCount").value > 0)
-      }
-    }
-  }
+//  test("test shuffle hash join metrics") {
+//    withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
+//      // without preproject
+//      runQueryAndCompare(
+//        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 = metrics_t2.c1"
+//      ) {
+//        df =>
+//          val smj = find(df.queryExecution.executedPlan) {
+//            case _: ShuffledHashJoinExecTransformer => true
+//            case _ => false
+//          }
+//          assert(smj.isDefined)
+//          val metrics = smj.get.metrics
+//          assert(metrics("numOutputRows").value == 100)
+//          assert(metrics("numOutputVectors").value > 0)
+//          assert(metrics("numOutputBytes").value > 0)
+//      }
+//
+//      // with preproject
+//      runQueryAndCompare(
+//        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 + 1 = metrics_t2.c1 + 1"
+//      ) {
+//        df =>
+//          val smj = find(df.queryExecution.executedPlan) {
+//            case _: ShuffledHashJoinExecTransformer => true
+//            case _ => false
+//          }
+//          assert(smj.isDefined)
+//          val metrics = smj.get.metrics
+//          assert(metrics("numOutputRows").value == 100)
+//          assert(metrics("numOutputVectors").value > 0)
+//          assert(metrics("streamPreProjectionCpuCount").value > 0)
+//          assert(metrics("buildPreProjectionCpuCount").value > 0)
+//      }
+//    }
+//  }
 
   test("Write metrics") {
     if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {

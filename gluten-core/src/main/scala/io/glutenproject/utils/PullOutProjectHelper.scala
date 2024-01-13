@@ -52,4 +52,13 @@ trait PullOutProjectHelper {
           .getOrElseUpdate(ExpressionEquals(other), Alias(other, other.toString())())
           .toAttribute
     }
+
+  protected def getAttributeFromMap(
+      expr: Expression,
+      projectExprsMap: mutable.HashMap[ExpressionEquals, NamedExpression]): Expression =
+    if (projectExprsMap.contains(ExpressionEquals(expr))) {
+      projectExprsMap(ExpressionEquals(expr)).toAttribute
+    } else {
+      expr
+    }
 }

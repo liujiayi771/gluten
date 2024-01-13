@@ -107,7 +107,7 @@ trait HashJoinLikeExecTransformer
 
   // Hint substrait to switch the left and right,
   // since we assume always build right side in substrait.
-  protected lazy val needSwitchChildren: Boolean = joinBuildSide match {
+  lazy val needSwitchChildren: Boolean = joinBuildSide match {
     case BuildLeft => true
     case BuildRight => false
   }

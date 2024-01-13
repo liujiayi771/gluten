@@ -15,7 +15,12 @@
  * limitations under the License.
  */
 package org.apache.spark.sql
+import org.apache.spark.SparkConf
 
-class GlutenCTEInlineSuiteAEOff extends CTEInlineSuiteAEOff with GlutenSQLTestsTrait
+class GlutenCTEInlineSuiteAEOff extends CTEInlineSuiteAEOff with GlutenSQLTestsTrait {
+  override def sparkConf: SparkConf = super.sparkConf
+    .set("spark.eventLog.dir", "hdfs://master-1-1:9000/spark-history/c-adbf2989328ed5d7")
+    .set("spark.eventLog.enabled", "true")
+}
 
 class GlutenCTEInlineSuiteAEOn extends CTEInlineSuiteAEOn with GlutenSQLTestsTrait

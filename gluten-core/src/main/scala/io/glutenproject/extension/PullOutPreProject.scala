@@ -17,6 +17,7 @@
 package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogicalPlanSelector, PullOutProjectHelper}
 
@@ -25,8 +26,39 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.catalyst.trees.TreePattern._
+import org.apache.spark.sql.execution.JoinSelectionShim
 import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
+import org.apache.spark.sql.execution.joins.HashJoin
+
+import scala.collection.mutable
+
+trait LogicalProjectHint
+case class POST_PROJECT() extends LogicalProjectHint
+
+object LogicalProjectHint {
+  val TAG: TreeNodeTag[LogicalProjectHint] =
+    TreeNodeTag[LogicalProjectHint]("io.glutenproject.logical.projecthint")
+
+  def isAlreadyTagged(plan: LogicalPlan): Boolean = {
+    plan.getTagValue(TAG).isDefined
+  }
+
+  def isPostProject(plan: LogicalPlan): Boolean = {
+    plan
+      .getTagValue(TAG)
+      .isDefined && plan.getTagValue(TAG).get.isInstanceOf[POST_PROJECT]
+  }
+
+  def tagPostProject(plan: LogicalPlan): Unit = {
+    tag(plan, POST_PROJECT())
+  }
+
+  private def tag(plan: LogicalPlan, hint: LogicalProjectHint): Unit = {
+    plan.setTagValue(TAG, hint)
+  }
+}
 
 /**
  * This rule will insert a pre-project in the child of operators such as Aggregate, Sort, Join,
@@ -34,16 +66,16 @@ import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
  */
 case class PullOutPreProject(session: SparkSession)
   extends Rule[LogicalPlan]
-  with PullOutProjectHelper {
+  with PullOutProjectHelper
+  with PredicateHelper {
 
-  private def insertPreProjectIfNeeded(
-      child: LogicalPlan,
-      expressions: Seq[Expression]): LogicalPlan = {
-    if (expressions.exists(isNotAttribute)) {
+  private def insertPreProjectIfNeeded(child: LogicalPlan, joinKeys: Seq[Expression])
+      : (LogicalPlan, mutable.HashMap[ExpressionEquals, NamedExpression]) = {
+    if (joinKeys.exists(isNotAttribute)) {
       val projectExprsMap = getProjectExpressionMap
-      expressions.toIndexedSeq.map(getAndReplaceProjectAttribute(_, projectExprsMap))
-      Project(child.output ++ projectExprsMap.values.toSeq, child)
-    } else child
+      joinKeys.toIndexedSeq.map(getAndReplaceProjectAttribute(_, projectExprsMap))
+      (Project(child.output ++ projectExprsMap.values.toSeq, child), projectExprsMap)
+    } else (child, mutable.HashMap.empty)
   }
 
   /**
@@ -65,8 +97,17 @@ case class PullOutPreProject(session: SparkSession)
           true
         case _ => false
       }.isDefined)
+
     case Sort(order, _, _) =>
       order.exists(o => isNotAttribute(o.child))
+
+    case JoinSelectionShim.ExtractEquiJoinKeysShim(_, leftKeys, rightKeys, _, _, _, _) =>
+      if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
+        HashJoin.rewriteKeyExpr(leftKeys).exists(isNotAttribute) ||
+        HashJoin.rewriteKeyExpr(rightKeys).exists(isNotAttribute)
+      } else {
+        leftKeys.exists(isNotAttribute) || rightKeys.exists(isNotAttribute)
+      }
     case _ => false
   }
 
@@ -109,7 +150,7 @@ case class PullOutPreProject(session: SparkSession)
       // Gluten not support Ansi Mode, not pull out pre-project
       return plan
     }
-    plan.transformUpWithPruning(_.containsAnyPattern(AGGREGATE, FILTER)) {
+    plan.transformUpWithPruning(_.containsAnyPattern(AGGREGATE, FILTER, JOIN)) {
       case filter: Filter
           if SparkShimLoader.getSparkShims.needsPreProjectForBloomFilterAgg(filter)(
             needsPreProject) =>
@@ -117,6 +158,34 @@ case class PullOutPreProject(session: SparkSession)
 
       case agg: Aggregate if needsPreProject(agg) =>
         transformAgg(agg)
+
+      case join @ JoinSelectionShim
+            .ExtractEquiJoinKeysShim(_, lKeys, rKeys, _, left, right, _) if needsPreProject(join) =>
+        val (leftKeys, rightKeys) =
+          if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
+            (HashJoin.rewriteKeyExpr(lKeys), HashJoin.rewriteKeyExpr(rKeys))
+          } else {
+            (lKeys, rKeys)
+          }
+        val (newLeft, leftMap) = insertPreProjectIfNeeded(left, leftKeys)
+        val (newRight, rightMap) = insertPreProjectIfNeeded(right, rightKeys)
+
+        val newCondition = if (leftMap.nonEmpty || rightMap.nonEmpty) {
+          join.condition.map(_.transform {
+            case p @ Equality(l, r) =>
+              p.makeCopy(Array(getAttributeFromMap(l, leftMap), getAttributeFromMap(r, rightMap)))
+          })
+        } else {
+          join.condition
+        }
+        // Add post-project to get the original output. If in the physical plan the buildSide
+        // of the join is BuildLeft, the order of left and right will be exchanged in the
+        // PullOutPostProject Rule.
+        val project = Project(
+          join.output,
+          join.copy(left = newLeft, right = newRight, condition = newCondition))
+        LogicalProjectHint.tagPostProject(project)
+        project
     }
   }
 }

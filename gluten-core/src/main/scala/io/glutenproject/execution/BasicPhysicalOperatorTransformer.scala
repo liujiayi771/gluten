@@ -28,6 +28,8 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.optimizer.BuildRight
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, LeftExistence}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase, FileScan}
 import org.apache.spark.sql.utils.StructTypeFWD
@@ -223,6 +225,27 @@ case class ProjectExecTransformer private (
   private def getInputAttributes(child: SparkPlan) = child match {
     case agg: HashAggregateExecBaseTransformer if isPostProject =>
       agg.allAggregateResultAttributes
+    case hashJoin: HashJoinLikeExecTransformer if isPostProject =>
+      val (leftOutput, rightOutput) =
+        if (hashJoin.needSwitchChildren && hashJoin.joinBuildSide == BuildRight) {
+          JoinUtils.getDirectJoinOutput(
+            hashJoin.joinType,
+            hashJoin.buildPlan.output,
+            hashJoin.streamedPlan.output)
+        } else {
+          JoinUtils.getDirectJoinOutput(
+            hashJoin.joinType,
+            hashJoin.streamedPlan.output,
+            hashJoin.buildPlan.output)
+        }
+      hashJoin.joinType match {
+        case j: ExistenceJoin =>
+          hashJoin.streamedPlan.output :+ j.exists
+        case LeftExistence(_) =>
+          leftOutput
+        case _ =>
+          leftOutput ++ rightOutput
+      }
     case _ => child.output
   }
 

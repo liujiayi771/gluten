@@ -16,7 +16,7 @@
  */
 package io.glutenproject.extension
 
-import io.glutenproject.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer, ProjectType}
+import io.glutenproject.execution._
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -51,7 +51,7 @@ object ProjectProcessedHint {
 
 object ColumnarPullOutPostProject extends Rule[SparkPlan] {
 
-  override def apply(plan: SparkPlan): SparkPlan = plan.transform {
+  override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
     case agg: HashAggregateExecBaseTransformer
         if !ProjectProcessedHint.isPostProjectProcessed(agg) &&
           agg.needsPostProjection =>
@@ -73,6 +73,22 @@ object ColumnarPullOutPostProject extends Rule[SparkPlan] {
       newAgg.copyTagsFrom(agg)
 
       ProjectExecTransformer(projectList, newAgg, projectType = ProjectType.POST)
+
+    case project @ ProjectExecTransformer(
+          _,
+          hashJoin: HashJoinLikeExecTransformer,
+          ProjectType.NORMAL)
+        if !ProjectProcessedHint.isPostProjectProcessed(hashJoin) &&
+          project.logicalLink.exists(LogicalProjectHint.isPostProject) =>
+      ProjectProcessedHint.postProjectProcessDone(hashJoin)
+      val newProject = project.copy(projectType = ProjectType.POST)
+      newProject.copyTagsFrom(newProject)
+      newProject
+
+    case hashJoin: HashJoinLikeExecTransformer
+        if !ProjectProcessedHint.isPostProjectProcessed(hashJoin) =>
+      ProjectProcessedHint.postProjectProcessDone(hashJoin)
+      ProjectExecTransformer(hashJoin.output, hashJoin, ProjectType.POST)
   }
 
   /**

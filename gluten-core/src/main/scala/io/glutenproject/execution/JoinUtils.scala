@@ -141,7 +141,7 @@ object JoinUtils {
   }
 
   // Return the direct join output.
-  protected def getDirectJoinOutput(
+  def getDirectJoinOutput(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
       rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
@@ -164,7 +164,7 @@ object JoinUtils {
     }
   }
 
-  protected def getDirectJoinOutputSeq(
+  def getDirectJoinOutputSeq(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
       rightOutput: Seq[Attribute]): Seq[Attribute] = {
@@ -244,48 +244,8 @@ object JoinUtils {
       operatorId
     )
 
-    // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
-    val resultProjection = if (exchangeTable) {
-      val (leftOutput, rightOutput) =
-        getDirectJoinOutput(joinType, inputBuildOutput, inputStreamedOutput)
-      joinType match {
-        case _: ExistenceJoin =>
-          inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
-            ExpressionBuilder.makeSelection(buildOutput.size)
-        case LeftExistence(_) =>
-          leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
-        case _ =>
-          // Exchange the order of build and streamed.
-          leftOutput.indices.map(
-            idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
-            rightOutput.indices
-              .map(ExpressionBuilder.makeSelection(_))
-      }
-    } else {
-      val (leftOutput, rightOutput) =
-        getDirectJoinOutput(joinType, inputStreamedOutput, inputBuildOutput)
-      if (joinType.isInstanceOf[ExistenceJoin]) {
-        inputStreamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
-          ExpressionBuilder.makeSelection(streamedOutput.size)
-      } else {
-        leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
-          rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
-      }
-    }
+    joinRel
 
-    val directJoinOutputs = if (exchangeTable) {
-      getDirectJoinOutputSeq(joinType, buildOutput, streamedOutput)
-    } else {
-      getDirectJoinOutputSeq(joinType, streamedOutput, buildOutput)
-    }
-    RelBuilder.makeProjectRel(
-      joinRel,
-      new java.util.ArrayList[ExpressionNode](resultProjection.asJava),
-      createExtensionNode(directJoinOutputs, validation),
-      substraitContext,
-      operatorId,
-      directJoinOutputs.size
-    )
   }
 
   def createTransformContext(
