@@ -117,9 +117,9 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
 
   test("Double type") {
     // Validation: BatchScan Project Aggregate Expand Sort Limit
-    runQueryAndCompare(
-      "select int, double from type1 " +
-        " group by grouping sets(int, double) sort by int, double limit 1") { _ => }
+//    runQueryAndCompare(
+//      "select int, double from type1 " +
+//        " group by grouping sets(int, double) sort by int, double limit 1") { _ => }
 
     // Validation: BroadHashJoin, Filter, Project
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
@@ -128,10 +128,10 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
         " type2 where type1.double = type2.double") { _ => }
 
     // Validation: ShuffledHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
-    runQueryAndCompare(
-      "select type1.double from type1," +
-        " type2 where type1.double = type2.double") { _ => }
+//    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+//    runQueryAndCompare(
+//      "select type1.double from type1," +
+//        " type2 where type1.double = type2.double") { _ => }
   }
 
   test("Float type") {

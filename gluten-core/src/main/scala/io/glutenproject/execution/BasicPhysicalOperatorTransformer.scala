@@ -25,6 +25,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -237,6 +238,10 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
+
+  // If the build side of BroadcastHashJoin needs pre-project, it will call doExecuteBroadcast
+  // to get the broadcast relation.
+  override def doExecuteBroadcast[T](): Broadcast[T] = child.executeBroadcast()
 }
 object ProjectExecTransformer {
   private def processProjectExecTransformer(

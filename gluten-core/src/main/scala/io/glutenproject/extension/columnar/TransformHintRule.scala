@@ -568,16 +568,18 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar shufflehashjoin is not enabled in ShuffledHashJoinExec")
           } else {
+            val rewrittenPlan = PullOutPreProject.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genShuffledHashJoinExecTransformer(
-                plan.leftKeys,
-                plan.rightKeys,
-                plan.joinType,
-                plan.buildSide,
-                plan.condition,
-                plan.left,
-                plan.right,
-                plan.isSkewJoin)
+                rewrittenPlan.leftKeys,
+                rewrittenPlan.rightKeys,
+                rewrittenPlan.joinType,
+                rewrittenPlan.buildSide,
+                rewrittenPlan.condition,
+                rewrittenPlan.left,
+                rewrittenPlan.right,
+                rewrittenPlan.isSkewJoin
+              )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: BroadcastExchangeExec =>
@@ -596,16 +598,18 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               bhj,
               "columnar BroadcastJoin is not enabled in BroadcastHashJoinExec")
           } else {
+            val rewrittenPlan = PullOutPreProject.applyForValidation(bhj)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genBroadcastHashJoinExecTransformer(
-                bhj.leftKeys,
-                bhj.rightKeys,
-                bhj.joinType,
-                bhj.buildSide,
-                bhj.condition,
-                bhj.left,
-                bhj.right,
-                isNullAwareAntiJoin = bhj.isNullAwareAntiJoin)
+                rewrittenPlan.leftKeys,
+                rewrittenPlan.rightKeys,
+                rewrittenPlan.joinType,
+                rewrittenPlan.buildSide,
+                rewrittenPlan.condition,
+                rewrittenPlan.left,
+                rewrittenPlan.right,
+                isNullAwareAntiJoin = rewrittenPlan.isNullAwareAntiJoin
+              )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: SortMergeJoinExec =>
@@ -614,14 +618,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar sort merge join is not enabled or join type is FullOuter")
           } else {
+            val rewrittenPlan = PullOutPreProject.applyForValidation(plan)
             val transformer = SortMergeJoinExecTransformer(
-              plan.leftKeys,
-              plan.rightKeys,
-              plan.joinType,
-              plan.condition,
-              plan.left,
-              plan.right,
-              plan.isSkewJoin)
+              rewrittenPlan.leftKeys,
+              rewrittenPlan.rightKeys,
+              rewrittenPlan.joinType,
+              rewrittenPlan.condition,
+              rewrittenPlan.left,
+              rewrittenPlan.right,
+              rewrittenPlan.isSkewJoin)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: CartesianProductExec =>

@@ -66,69 +66,18 @@ object JoinUtils {
       substraitContext: SubstraitContext,
       operatorId: java.lang.Long,
       validation: Boolean): (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
-    if (!preProjectionNeeded(keyExprs)) {
-      // Skip pre-projection if all keys are [AttributeReference]s,
-      // which can be directly converted into SelectionNode.
-      val keys = keyExprs.map {
-        expr =>
-          (
-            ExpressionConverter
-              .replaceWithExpressionTransformer(expr, partialConstructedJoinOutput)
-              .asInstanceOf[AttributeReferenceTransformer]
-              .doTransform(substraitContext.registeredFunction),
-            expr.dataType)
-      }
-      (keys, inputNode, inputNodeOutput)
-    } else {
-      // Pre-projection is constructed from original columns followed by join-key expressions.
-      val selectOrigins = inputNodeOutput.indices.map(ExpressionBuilder.makeSelection(_))
-      val appendedKeys = keyExprs.flatMap {
-        case _: AttributeReference => None
-        case expr =>
-          Some(
-            (
-              ExpressionConverter
-                .replaceWithExpressionTransformer(expr, inputNodeOutput)
-                .doTransform(substraitContext.registeredFunction),
-              expr.dataType))
-      }
-      val preProjectNode = RelBuilder.makeProjectRel(
-        inputNode,
-        new java.util.ArrayList[ExpressionNode]((selectOrigins ++ appendedKeys.map(_._1)).asJava),
-        createExtensionNode(inputNodeOutput, validation),
-        substraitContext,
-        operatorId,
-        inputNodeOutput.size
-      )
-
-      // Compute index for join keys in join outputs.
-      val offset = partialConstructedJoinOutput.size
-      val appendedKeysAndIndices = appendedKeys.zipWithIndex.iterator
-      val keys = keyExprs.map {
-        case a: AttributeReference =>
-          // The selection index for original AttributeReference is unchanged.
-          (
-            ExpressionConverter
-              .replaceWithExpressionTransformer(a, partialConstructedJoinOutput)
-              .asInstanceOf[AttributeReferenceTransformer]
-              .doTransform(substraitContext.registeredFunction),
-            a.dataType)
-        case _ =>
-          val (key, idx) = appendedKeysAndIndices.next()
-          (ExpressionBuilder.makeSelection(idx + offset), key._2)
-      }
-      (
-        keys,
-        preProjectNode,
-        inputNodeOutput ++
-          appendedKeys.zipWithIndex.map {
-            case (key, idx) =>
-              // Create output attributes for appended keys.
-              // This is used as place holder for finding the right column indexes in post-join
-              // filters.
-              AttributeReference(s"col_${idx + offset}", key._2)()
-          })
+    // Skip pre-projection if all keys are [AttributeReference]s,
+    // which can be directly converted into SelectionNode.
+    val keys = keyExprs.map {
+      expr =>
+        (
+          ExpressionConverter
+            .replaceWithExpressionTransformer(expr, partialConstructedJoinOutput)
+            .asInstanceOf[AttributeReferenceTransformer]
+            .doTransform(substraitContext.registeredFunction),
+          expr.dataType)
     }
+    (keys, inputNode, inputNodeOutput)
   }
 
   def createJoinExtensionNode(
@@ -181,36 +130,36 @@ object JoinUtils {
       exchangeTable: Boolean,
       joinType: JoinType,
       joinParameters: Any,
-      inputStreamedRelNode: RelNode,
-      inputBuildRelNode: RelNode,
-      inputStreamedOutput: Seq[Attribute],
-      inputBuildOutput: Seq[Attribute],
+      streamedRelNode: RelNode,
+      buildRelNode: RelNode,
+      streamedOutput: Seq[Attribute],
+      buildOutput: Seq[Attribute],
       substraitContext: SubstraitContext,
       operatorId: java.lang.Long,
       validation: Boolean = false): RelNode = {
     // scalastyle:on argcount
     // Create pre-projection for build/streamed plan. Append projected keys to each side.
-    val (streamedKeys, streamedRelNode, streamedOutput) = createPreProjectionIfNeeded(
-      streamedKeyExprs,
-      inputStreamedRelNode,
-      inputStreamedOutput,
-      inputStreamedOutput,
-      substraitContext,
-      operatorId,
-      validation)
+    val streamedKeys = streamedKeyExprs.map {
+      expr =>
+        (
+          ExpressionConverter
+            .replaceWithExpressionTransformer(expr, streamedOutput)
+            .doTransform(substraitContext.registeredFunction),
+          expr.dataType)
+    }
 
-    val (buildKeys, buildRelNode, buildOutput) = createPreProjectionIfNeeded(
-      buildKeyExprs,
-      inputBuildRelNode,
-      inputBuildOutput,
-      streamedOutput ++ inputBuildOutput,
-      substraitContext,
-      operatorId,
-      validation)
+    val buildKeys = buildKeyExprs.map {
+      expr =>
+        (
+          ExpressionConverter
+            .replaceWithExpressionTransformer(expr, streamedOutput ++ buildOutput)
+            .doTransform(substraitContext.registeredFunction),
+          expr.dataType)
+    }
 
     // Combine join keys to make a single expression.
-    val joinExpressionNode = (streamedKeys
-      .zip(buildKeys))
+    val joinExpressionNode = streamedKeys
+      .zip(buildKeys)
       .map {
         case ((leftKey, leftType), (rightKey, rightType)) =>
           HashJoinLikeExecTransformer.makeEqualToExpression(
@@ -247,10 +196,10 @@ object JoinUtils {
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
     val resultProjection = if (exchangeTable) {
       val (leftOutput, rightOutput) =
-        getDirectJoinOutput(joinType, inputBuildOutput, inputStreamedOutput)
+        getDirectJoinOutput(joinType, buildOutput, streamedOutput)
       joinType match {
         case _: ExistenceJoin =>
-          inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
+          buildOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
             ExpressionBuilder.makeSelection(buildOutput.size)
         case LeftExistence(_) =>
           leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
@@ -263,9 +212,9 @@ object JoinUtils {
       }
     } else {
       val (leftOutput, rightOutput) =
-        getDirectJoinOutput(joinType, inputStreamedOutput, inputBuildOutput)
+        getDirectJoinOutput(joinType, streamedOutput, buildOutput)
       if (joinType.isInstanceOf[ExistenceJoin]) {
-        inputStreamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
+        streamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
           ExpressionBuilder.makeSelection(streamedOutput.size)
       } else {
         leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++

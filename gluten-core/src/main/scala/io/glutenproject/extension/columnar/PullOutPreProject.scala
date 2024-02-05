@@ -16,11 +16,13 @@
  */
 package io.glutenproject.extension.columnar
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.PullOutProjectHelper
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Equality, Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin}
 
 import scala.collection.mutable
 
@@ -44,6 +46,14 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         sort.sortOrder.exists(o => isNotAttribute(o.child))
       case take: TakeOrderedAndProjectExec =>
         take.sortOrder.exists(o => isNotAttribute(o.child))
+      case join: BaseJoinExec =>
+        join match {
+          case _: HashJoin if BackendsApiManager.getSettings.enableJoinKeysRewrite() =>
+            HashJoin.rewriteKeyExpr(join.leftKeys).exists(isNotAttribute) ||
+            HashJoin.rewriteKeyExpr(join.rightKeys).exists(isNotAttribute)
+          case _ =>
+            join.leftKeys.exists(isNotAttribute) || join.rightKeys.exists(isNotAttribute)
+        }
       case _ => false
     }
   }
@@ -76,6 +86,20 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
           .asInstanceOf[SortOrder]
         newOrder.copy(sameOrderExpressions =
           newOrder.sameOrderExpressions ++ originalOrderExpressions)
+    }
+  }
+
+  private def pullOutPreProjectForJoin(joinChild: SparkPlan, joinKeys: Seq[Expression])
+      : (SparkPlan, Seq[Expression], mutable.HashMap[Expression, NamedExpression]) = {
+    val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+    if (joinKeys.exists(isNotAttribute)) {
+      val newJoinKeys = joinKeys.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
+      val preProject = ProjectExec(
+        eliminateProjectList(joinChild.outputSet, expressionMap.values.toSeq),
+        joinChild)
+      (preProject, newJoinKeys, expressionMap)
+    } else {
+      (joinChild, joinKeys, expressionMap)
     }
   }
 
@@ -124,5 +148,31 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       val newTopK = topK.copy(sortOrder = newSortOrder, child = preProject)
       newTopK.copyTagsFrom(topK)
       newTopK
+
+    case join: BaseJoinExec if needsPreProject(join) =>
+      // Spark has an improvement which would patch integer joins keys to a Long value.
+      // But this improvement would cause add extra project before hash join in velox,
+      // disabling this improvement as below would help reduce the project.
+      val (leftKeys, rightKeys) = join match {
+        case _: HashJoin if BackendsApiManager.getSettings.enableJoinKeysRewrite() =>
+          (HashJoin.rewriteKeyExpr(join.leftKeys), HashJoin.rewriteKeyExpr(join.rightKeys))
+        case _ =>
+          (join.leftKeys, join.rightKeys)
+      }
+      val (newLeft, newLeftKeys, leftMap) = pullOutPreProjectForJoin(join.left, leftKeys)
+      val (newRight, newRightKeys, rightMap) = pullOutPreProjectForJoin(join.right, rightKeys)
+
+      val newCondition = if (leftMap.nonEmpty || rightMap.nonEmpty) {
+        join.condition.map(_.transform {
+          case p @ Equality(l, r) =>
+            p.makeCopy(
+              Array(leftMap.getOrElse(l.canonicalized, l), rightMap.getOrElse(r.canonicalized, r)))
+        })
+      } else {
+        join.condition
+      }
+
+      join.unsetTagValue(TransformHints.TAG)
+      copyHashJoin(join, newLeft, newRight, newLeftKeys, newRightKeys, newCondition)
   }
 }

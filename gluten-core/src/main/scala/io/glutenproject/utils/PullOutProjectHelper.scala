@@ -20,6 +20,7 @@ import io.glutenproject.extension.columnar.TransformHints
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -62,4 +63,38 @@ trait PullOutProjectHelper {
 
   protected def notSupportTransform(plan: SparkPlan): Boolean =
     TransformHints.isAlreadyTagged(plan) && TransformHints.isNotTransformable(plan)
+
+  protected def copyHashJoin(
+      hashJoin: BaseJoinExec,
+      newLeft: SparkPlan,
+      newRight: SparkPlan,
+      newLeftKeys: Seq[Expression],
+      newRightKeys: Seq[Expression],
+      newCondition: Option[Expression]): BaseJoinExec = {
+    hashJoin match {
+      case bhj: BroadcastHashJoinExec =>
+        bhj.copy(
+          left = newLeft,
+          right = newRight,
+          leftKeys = newLeftKeys,
+          rightKeys = newRightKeys,
+          condition = newCondition)
+      case shj: ShuffledHashJoinExec =>
+        shj.copy(
+          left = newLeft,
+          right = newRight,
+          leftKeys = newLeftKeys,
+          rightKeys = newRightKeys,
+          condition = newCondition)
+      case smj: SortMergeJoinExec =>
+        smj.copy(
+          left = newLeft,
+          right = newRight,
+          leftKeys = newLeftKeys,
+          rightKeys = newRightKeys,
+          condition = newCondition)
+      case _ =>
+        throw new UnsupportedOperationException(s"Unsupported hash join $hashJoin")
+    }
+  }
 }
