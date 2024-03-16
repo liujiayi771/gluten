@@ -107,13 +107,15 @@ CompanionSignatures::partialFunctionSignatures(
     usedTypes.push_back(signature->intermediateType());
     auto variables = usedTypeVariables(usedTypes, signature->variables());
 
-    partialSignatures.push_back(std::make_shared<AggregateFunctionSignature>(
+    auto aggFuncSignature = std::make_shared<AggregateFunctionSignature>(
         /*variables*/ variables,
         /*returnType*/ signature->intermediateType(),
         /*intermediateType*/ signature->intermediateType(),
         /*argumentTypes*/ signature->argumentTypes(),
         /*constantArguments*/ signature->constantArguments(),
-        /*variableArity*/ signature->variableArity()));
+        /*variableArity*/ signature->variableArity());
+    aggFuncSignature->validate();
+    partialSignatures.push_back(aggFuncSignature);
   }
   return partialSignatures;
 }
@@ -130,7 +132,7 @@ AggregateFunctionSignaturePtr CompanionSignatures::mergeFunctionSignature(
 
   std::vector<TypeSignature> usedTypes = {signature->intermediateType()};
   auto variables = usedTypeVariables(usedTypes, signature->variables());
-  return std::make_shared<AggregateFunctionSignature>(
+  auto aggFuncSignature = std::make_shared<AggregateFunctionSignature>(
       /*variables*/ variables,
       /*returnType*/ signature->intermediateType(),
       /*intermediateType*/ signature->intermediateType(),
@@ -138,6 +140,8 @@ AggregateFunctionSignaturePtr CompanionSignatures::mergeFunctionSignature(
       std::vector<TypeSignature>{signature->intermediateType()},
       /*constantArguments*/ std::vector<bool>{false},
       /*variableArity*/ false);
+  aggFuncSignature->validate();
+  return aggFuncSignature;
 }
 
 std::vector<AggregateFunctionSignaturePtr>
@@ -177,7 +181,7 @@ CompanionSignatures::mergeExtractFunctionSignature(
   std::vector<TypeSignature> usedTypes = {
       signature->intermediateType(), signature->returnType()};
   auto variables = usedTypeVariables(usedTypes, signature->variables());
-  return std::make_shared<AggregateFunctionSignature>(
+  auto aggFuncSignature = std::make_shared<AggregateFunctionSignature>(
       /*variables*/ variables,
       /*returnType*/ signature->returnType(),
       /*intermediateType*/ signature->intermediateType(),
@@ -185,6 +189,8 @@ CompanionSignatures::mergeExtractFunctionSignature(
       std::vector<TypeSignature>{signature->intermediateType()},
       /*constantArguments*/ std::vector<bool>{false},
       /*variableArity*/ false);
+  aggFuncSignature->validate();
+  return aggFuncSignature;
 }
 
 std::vector<AggregateFunctionSignaturePtr>
@@ -216,13 +222,15 @@ FunctionSignaturePtr CompanionSignatures::extractFunctionSignature(
   std::vector<TypeSignature> usedTypes = {
       signature->intermediateType(), signature->returnType()};
   auto variables = usedTypeVariables(usedTypes, signature->variables());
-  return std::make_shared<FunctionSignature>(
+  auto funcSignature = std::make_shared<FunctionSignature>(
       /*variables*/ variables,
       /*returnType*/ signature->returnType(),
       /*argumentTypes*/
       std::vector<TypeSignature>{signature->intermediateType()},
       /*constantArguments*/ std::vector<bool>{false},
       /*variableArity*/ false);
+  funcSignature->validate();
+  return funcSignature;
 }
 
 std::string CompanionSignatures::extractFunctionNameWithSuffix(

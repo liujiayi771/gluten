@@ -17,40 +17,41 @@ add_subdirectory(utils)
 add_executable(
   velox_expression_test
   ArgumentTypeFuzzerTest.cpp
+  ArrayViewTest.cpp
+  ArrayWriterTest.cpp
+  CastExprTest.cpp
+  CoalesceTest.cpp
+  ConjunctTest.cpp
+  ConstantFlatVectorReaderTest.cpp
   CustomTypeTest.cpp
   ExprEncodingsTest.cpp
   ExprTest.cpp
   ExprToSubfieldFilterTest.cpp
   ExprCompilerTest.cpp
   EvalCtxTest.cpp
-  ExprStatsTest.cpp
-  CastExprTest.cpp
-  CoalesceTest.cpp
-  ConjunctTest.cpp
-  ConstantFlatVectorReaderTest.cpp
-  Main.cpp
-  MapWriterTest.cpp
-  ReverseSignatureBinderTest.cpp
-  RowWriterTest.cpp
   EvalSimplifiedTest.cpp
+  ExprStatsTest.cpp
   FunctionCallToSpecialFormTest.cpp
+  FunctionSignatureTest.cpp
+  GenericViewTest.cpp
+  GenericWriterTest.cpp
+  Main.cpp
+  MapViewTest.cpp
+  MapWriterTest.cpp
+  PeeledEncodingTest.cpp
+  ReverseSignatureBinderTest.cpp
+  RowViewTest.cpp
+  RowWriterTest.cpp
   SignatureBinderTest.cpp
   SimpleFunctionTest.cpp
   SimpleFunctionInitTest.cpp
   SimpleFunctionCallNullFreeTest.cpp
   SimpleFunctionPresetNullsTest.cpp
-  ArrayViewTest.cpp
   StringWriterTest.cpp
-  ArrayWriterTest.cpp
   StringWriterTest.cpp
-  MapViewTest.cpp
-  RowViewTest.cpp
-  GenericViewTest.cpp
   TryExprTest.cpp
   VariadicViewTest.cpp
-  VectorReaderTest.cpp
-  GenericWriterTest.cpp
-  PeeledEncodingTest.cpp)
+  VectorReaderTest.cpp)
 
 add_test(
   NAME velox_expression_test

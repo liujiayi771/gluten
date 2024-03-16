@@ -140,42 +140,6 @@ void validateBaseTypeAndCollectTypeParams(
     collectedTypeVariables.insert(arg.baseName());
   }
 }
-
-void validate(
-    const std::unordered_map<std::string, SignatureVariable>& variables,
-    const TypeSignature& returnType,
-    const std::vector<TypeSignature>& argumentTypes,
-    const std::vector<bool>& constantArguments) {
-  std::unordered_set<std::string> usedVariables;
-  // Validate the argument types.
-  for (const auto& arg : argumentTypes) {
-    // Is base type a type parameter or a built in type ?
-    validateBaseTypeAndCollectTypeParams(variables, arg, usedVariables, false);
-  }
-
-  // All type variables should apear in the inputs arguments.
-  for (auto& [name, variable] : variables) {
-    if (variable.isTypeParameter()) {
-      VELOX_USER_CHECK(
-          usedVariables.count(name),
-          "Some type variables are not used in the inputs");
-    }
-  }
-
-  validateBaseTypeAndCollectTypeParams(
-      variables, returnType, usedVariables, true);
-
-  VELOX_USER_CHECK_EQ(
-      usedVariables.size(),
-      variables.size(),
-      "Some integer variables are not used");
-
-  VELOX_USER_CHECK_EQ(
-      argumentTypes.size(),
-      constantArguments.size(),
-      "Argument types size is not equal to constant flags");
-}
-
 } // namespace
 
 SignatureVariable::SignatureVariable(
@@ -211,8 +175,37 @@ FunctionSignature::FunctionSignature(
       returnType_{std::move(returnType)},
       argumentTypes_{std::move(argumentTypes)},
       constantArguments_{std::move(constantArguments)},
-      variableArity_{variableArity} {
-  validate(variables_, returnType_, argumentTypes_, constantArguments_);
+      variableArity_{variableArity} {}
+
+void FunctionSignature::validate(
+    std::unordered_set<std::string> usedVariables) {
+  // Validate the argument types.
+  for (const auto& arg : argumentTypes_) {
+    // Is base type a type parameter or a built in type ?
+    validateBaseTypeAndCollectTypeParams(variables_, arg, usedVariables, false);
+  }
+
+  // All type variables should apear in the inputs arguments.
+  for (auto& [name, variable] : variables_) {
+    if (variable.isTypeParameter()) {
+      VELOX_USER_CHECK(
+          usedVariables.count(name),
+          "Some type variables are not used in the inputs");
+    }
+  }
+
+  validateBaseTypeAndCollectTypeParams(
+      variables_, returnType_, usedVariables, true);
+
+  VELOX_USER_CHECK_EQ(
+      usedVariables.size(),
+      variables_.size(),
+      "Some integer variables are not used");
+
+  VELOX_USER_CHECK_EQ(
+      argumentTypes_.size(),
+      constantArguments_.size(),
+      "Argument types size is not equal to constant flags");
 }
 
 std::string AggregateFunctionSignature::toString() const {
@@ -222,14 +215,23 @@ std::string AggregateFunctionSignature::toString() const {
   return out.str();
 }
 
+void AggregateFunctionSignature::validate(
+    std::unordered_set<std::string> usedVariables) {
+  validateBaseTypeAndCollectTypeParams(
+      variables_, intermediateType_, usedVariables, false);
+  FunctionSignature::validate(usedVariables);
+}
+
 FunctionSignaturePtr FunctionSignatureBuilder::build() {
   VELOX_CHECK(returnType_.has_value());
-  return std::make_shared<FunctionSignature>(
+  auto funcSignature = std::make_shared<FunctionSignature>(
       std::move(variables_),
       returnType_.value(),
       std::move(argumentTypes_),
       std::move(constantArguments_),
       variableArity_);
+  funcSignature->validate();
+  return funcSignature;
 }
 
 FunctionSignatureBuilder& FunctionSignatureBuilder::knownTypeVariable(
@@ -278,13 +280,15 @@ std::shared_ptr<AggregateFunctionSignature>
 AggregateFunctionSignatureBuilder::build() {
   VELOX_CHECK(returnType_.has_value());
   VELOX_CHECK(intermediateType_.has_value());
-  return std::make_shared<AggregateFunctionSignature>(
+  auto aggFuncSignature = std::make_shared<AggregateFunctionSignature>(
       std::move(variables_),
       returnType_.value(),
       intermediateType_.value(),
       std::move(argumentTypes_),
       std::move(constantArguments_),
       variableArity_);
+  aggFuncSignature->validate();
+  return aggFuncSignature;
 }
 
 AggregateFunctionSignatureBuilder&

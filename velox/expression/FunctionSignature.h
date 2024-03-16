@@ -109,6 +109,8 @@ class SignatureVariable {
 
 class FunctionSignature {
  public:
+  /// Construct a function signature. Need to call the validate method to
+  /// verify the input parameters.
   /// @param variables_ Generic type names used in return type
   /// and argument types (and constraints if necessary).
   /// @param returnType Return type. May use generic type names, e.g.
@@ -154,6 +156,11 @@ class FunctionSignature {
 
   virtual std::string toString() const;
 
+  /// Validate whether each parameter in the function signature is valid.
+  /// @param usedVariables Collect the variables used in each type of parameter
+  /// to validate that all the set variables have been used.
+  virtual void validate(std::unordered_set<std::string> usedVariables = {});
+
   const auto& variables() const {
     return variables_;
   }
@@ -171,7 +178,6 @@ class FunctionSignature {
   // Return a string of the list of argument types.
   std::string argumentsToString() const;
 
- private:
   const std::unordered_map<std::string, SignatureVariable> variables_;
   const TypeSignature returnType_;
   const std::vector<TypeSignature> argumentTypes_;
@@ -203,6 +209,8 @@ class AggregateFunctionSignature : public FunctionSignature {
   }
 
   std::string toString() const override;
+
+  void validate(std::unordered_set<std::string> usedVariables = {}) override;
 
  private:
   const TypeSignature intermediateType_;
