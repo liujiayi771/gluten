@@ -16,6 +16,7 @@
  */
 package io.glutenproject.extension.columnar
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -23,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin}
 import org.apache.spark.sql.execution.window.WindowExec
 
 import scala.collection.mutable
@@ -74,6 +76,14 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
             }
           case _ => false
         }.isDefined)
+      case join: BaseJoinExec =>
+        join match {
+          case _: HashJoin if BackendsApiManager.getSettings.enableJoinKeysRewrite() =>
+            HashJoin.rewriteKeyExpr(join.leftKeys).exists(isNotAttribute) ||
+            HashJoin.rewriteKeyExpr(join.rightKeys).exists(isNotAttribute)
+          case _ =>
+            join.leftKeys.exists(isNotAttribute) || join.rightKeys.exists(isNotAttribute)
+        }
       case _ => false
     }
   }
@@ -178,6 +188,32 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       )
 
       ProjectExec(window.output, newWindow)
+
+    case join: BaseJoinExec if needsPreProject(join) =>
+      // Spark has an improvement which would patch integer joins keys to a Long value.
+      // But this improvement would cause add extra project before hash join in velox,
+      // disabling this improvement as below would help reduce the project.
+      val (leftKeys, rightKeys) = join match {
+        case _: HashJoin if BackendsApiManager.getSettings.enableJoinKeysRewrite() =>
+          (HashJoin.rewriteKeyExpr(join.leftKeys), HashJoin.rewriteKeyExpr(join.rightKeys))
+        case _ =>
+          (join.leftKeys, join.rightKeys)
+      }
+      val (newLeft, newLeftKeys, leftMap) = pullOutPreProjectForJoin(join.left, leftKeys)
+      val (newRight, newRightKeys, rightMap) = pullOutPreProjectForJoin(join.right, rightKeys)
+
+      val newCondition = if (leftMap.nonEmpty || rightMap.nonEmpty) {
+        join.condition.map(_.transform {
+          case p @ Equality(l, r) =>
+            p.makeCopy(
+              Array(leftMap.getOrElse(l.canonicalized, l), rightMap.getOrElse(r.canonicalized, r)))
+        })
+      } else {
+        join.condition
+      }
+      ProjectExec(
+        join.output,
+        copyBaseJoinExec(join)(newLeft, newRight, newLeftKeys, newRightKeys, newCondition))
 
     case _ => plan
   }

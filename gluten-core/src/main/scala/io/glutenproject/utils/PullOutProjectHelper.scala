@@ -18,7 +18,9 @@ package io.glutenproject.utils
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate._
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -111,6 +113,37 @@ trait PullOutProjectHelper {
       throw new UnsupportedOperationException(s"Unsupported agg $agg")
   }
 
+  protected def copyBaseJoinExec(join: BaseJoinExec)(
+      newLeft: SparkPlan = join.left,
+      newRight: SparkPlan = join.right,
+      newLeftKeys: Seq[Expression] = join.leftKeys,
+      newRightKeys: Seq[Expression] = join.rightKeys,
+      newCondition: Option[Expression] = join.condition): BaseJoinExec = join match {
+    case bhj: BroadcastHashJoinExec =>
+      bhj.copy(
+        left = newLeft,
+        right = newRight,
+        leftKeys = newLeftKeys,
+        rightKeys = newRightKeys,
+        condition = newCondition)
+    case shj: ShuffledHashJoinExec =>
+      shj.copy(
+        left = newLeft,
+        right = newRight,
+        leftKeys = newLeftKeys,
+        rightKeys = newRightKeys,
+        condition = newCondition)
+    case smj: SortMergeJoinExec =>
+      smj.copy(
+        left = newLeft,
+        right = newRight,
+        leftKeys = newLeftKeys,
+        rightKeys = newRightKeys,
+        condition = newCondition)
+    case _ =>
+      throw new UnsupportedOperationException(s"Unsupported join $join")
+  }
+
   protected def rewriteAggregateExpression(
       ae: AggregateExpression,
       expressionMap: mutable.HashMap[Expression, NamedExpression]): AggregateExpression = {
@@ -140,5 +173,19 @@ trait PullOutProjectHelper {
       case other => other
     }
     we.copy(windowFunction = newWindowFunc)
+  }
+
+  protected def pullOutPreProjectForJoin(joinChild: SparkPlan, joinKeys: Seq[Expression])
+      : (SparkPlan, Seq[Expression], mutable.HashMap[Expression, NamedExpression]) = {
+    val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+    if (joinKeys.exists(isNotAttribute)) {
+      val newJoinKeys = joinKeys.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
+      val preProject = ProjectExec(
+        eliminateProjectList(joinChild.outputSet, expressionMap.values.toSeq),
+        joinChild)
+      (preProject, newJoinKeys, expressionMap)
+    } else {
+      (joinChild, joinKeys, expressionMap)
+    }
   }
 }

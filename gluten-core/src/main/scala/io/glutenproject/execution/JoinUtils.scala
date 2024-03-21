@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
@@ -26,7 +26,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.types.DataType
 
 import com.google.protobuf.Any
 import io.substrait.proto.{CrossRel, JoinRel}
@@ -56,79 +55,6 @@ object JoinUtils {
 
   def preProjectionNeeded(keyExprs: Seq[Expression]): Boolean = {
     !keyExprs.forall(_.isInstanceOf[AttributeReference])
-  }
-
-  def createPreProjectionIfNeeded(
-      keyExprs: Seq[Expression],
-      inputNode: RelNode,
-      inputNodeOutput: Seq[Attribute],
-      partialConstructedJoinOutput: Seq[Attribute],
-      substraitContext: SubstraitContext,
-      operatorId: java.lang.Long,
-      validation: Boolean): (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
-    if (!preProjectionNeeded(keyExprs)) {
-      // Skip pre-projection if all keys are [AttributeReference]s,
-      // which can be directly converted into SelectionNode.
-      val keys = keyExprs.map {
-        expr =>
-          (
-            ExpressionConverter
-              .replaceWithExpressionTransformer(expr, partialConstructedJoinOutput)
-              .asInstanceOf[AttributeReferenceTransformer]
-              .doTransform(substraitContext.registeredFunction),
-            expr.dataType)
-      }
-      (keys, inputNode, inputNodeOutput)
-    } else {
-      // Pre-projection is constructed from original columns followed by join-key expressions.
-      val selectOrigins = inputNodeOutput.indices.map(ExpressionBuilder.makeSelection(_))
-      val appendedKeys = keyExprs.flatMap {
-        case _: AttributeReference => None
-        case expr =>
-          Some(
-            (
-              ExpressionConverter
-                .replaceWithExpressionTransformer(expr, inputNodeOutput)
-                .doTransform(substraitContext.registeredFunction),
-              expr.dataType))
-      }
-      val preProjectNode = RelBuilder.makeProjectRel(
-        inputNode,
-        new java.util.ArrayList[ExpressionNode]((selectOrigins ++ appendedKeys.map(_._1)).asJava),
-        createExtensionNode(inputNodeOutput, validation),
-        substraitContext,
-        operatorId,
-        inputNodeOutput.size
-      )
-
-      // Compute index for join keys in join outputs.
-      val offset = partialConstructedJoinOutput.size
-      val appendedKeysAndIndices = appendedKeys.zipWithIndex.iterator
-      val keys = keyExprs.map {
-        case a: AttributeReference =>
-          // The selection index for original AttributeReference is unchanged.
-          (
-            ExpressionConverter
-              .replaceWithExpressionTransformer(a, partialConstructedJoinOutput)
-              .asInstanceOf[AttributeReferenceTransformer]
-              .doTransform(substraitContext.registeredFunction),
-            a.dataType)
-        case _ =>
-          val (key, idx) = appendedKeysAndIndices.next()
-          (ExpressionBuilder.makeSelection(idx + offset), key._2)
-      }
-      (
-        keys,
-        preProjectNode,
-        inputNodeOutput ++
-          appendedKeys.zipWithIndex.map {
-            case (key, idx) =>
-              // Create output attributes for appended keys.
-              // This is used as place holder for finding the right column indexes in post-join
-              // filters.
-              AttributeReference(s"col_${idx + offset}", key._2)()
-          })
-    }
   }
 
   def createJoinExtensionNode(
@@ -181,36 +107,36 @@ object JoinUtils {
       exchangeTable: Boolean,
       joinType: JoinType,
       joinParameters: Any,
-      inputStreamedRelNode: RelNode,
-      inputBuildRelNode: RelNode,
-      inputStreamedOutput: Seq[Attribute],
-      inputBuildOutput: Seq[Attribute],
+      streamedRelNode: RelNode,
+      buildRelNode: RelNode,
+      streamedOutput: Seq[Attribute],
+      buildOutput: Seq[Attribute],
       substraitContext: SubstraitContext,
       operatorId: java.lang.Long,
       validation: Boolean = false): RelNode = {
     // scalastyle:on argcount
     // Create pre-projection for build/streamed plan. Append projected keys to each side.
-    val (streamedKeys, streamedRelNode, streamedOutput) = createPreProjectionIfNeeded(
-      streamedKeyExprs,
-      inputStreamedRelNode,
-      inputStreamedOutput,
-      inputStreamedOutput,
-      substraitContext,
-      operatorId,
-      validation)
+    val streamedKeys = streamedKeyExprs.map {
+      expr =>
+        (
+          ExpressionConverter
+            .replaceWithExpressionTransformer(expr, streamedOutput)
+            .doTransform(substraitContext.registeredFunction),
+          expr.dataType)
+    }
 
-    val (buildKeys, buildRelNode, buildOutput) = createPreProjectionIfNeeded(
-      buildKeyExprs,
-      inputBuildRelNode,
-      inputBuildOutput,
-      streamedOutput ++ inputBuildOutput,
-      substraitContext,
-      operatorId,
-      validation)
+    val buildKeys = buildKeyExprs.map {
+      expr =>
+        (
+          ExpressionConverter
+            .replaceWithExpressionTransformer(expr, streamedOutput ++ buildOutput)
+            .doTransform(substraitContext.registeredFunction),
+          expr.dataType)
+    }
 
     // Combine join keys to make a single expression.
-    val joinExpressionNode = (streamedKeys
-      .zip(buildKeys))
+    val joinExpressionNode = streamedKeys
+      .zip(buildKeys)
       .map {
         case ((leftKey, leftType), (rightKey, rightType)) =>
           HashJoinLikeExecTransformer.makeEqualToExpression(
@@ -247,8 +173,8 @@ object JoinUtils {
     createProjectRelPostJoinRel(
       exchangeTable,
       joinType,
-      inputStreamedOutput,
-      inputBuildOutput,
+      streamedOutput,
+      buildOutput,
       substraitContext,
       operatorId,
       joinRel,
