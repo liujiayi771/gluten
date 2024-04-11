@@ -49,7 +49,13 @@ object GlutenIcebergSourceUtil {
           paths.add(filePath)
           starts.add(task.start())
           lengths.add(task.length())
-          partitionColumns.add(getPartitionColumns(task))
+          // Do not pass the partition columns info to Velox, it will cause the partitioned table to
+          // fail to be read. See https://github.com/apache/incubator-gluten/issues/5362. Iceberg
+          // does not rely on reading partition columns from partition paths. Instead, the data
+          // files themselves contain the partition columns. Therefore, even if partition
+          // information is not passed, partitioned tables can still be correctly read.
+          // partitionColumns.add(getPartitionColumns(task))
+          partitionColumns.add(new JHashMap[String, String]())
           deleteFilesList.add(task.deletes());
           val currentFileFormat = convertFileFormat(task.file().format())
           if (fileFormat == ReadFileFormat.UnknownFormat) {
