@@ -66,11 +66,32 @@ std::shared_ptr<IcebergSplitInfo> IcebergPlanConverter::parseIcebergSplitInfo(
           fileContent = FileContent::kEqualityDeletes;
           break;
         default:
-          fileContent = FileContent::kData;
-          break;
+          VELOX_NYI("Unsupported Iceberg delete file content.");
+      }
+      std::vector<int32_t> equalityFieldIds(deleteFile.equalityfieldids().begin(), deleteFile.equalityfieldids().end());
+      std::unordered_map<int32_t, std::string> lowerBounds = {};
+      if (deleteFile.has_lowerbounds()) {
+        for (auto kvIdx = 0; kvIdx < deleteFile.lowerbounds().key_values_size(); kvIdx++) {
+          auto kv = deleteFile.lowerbounds().key_values(kvIdx);
+          lowerBounds[kv.key()] = kv.value();
+        }
+      }
+      std::unordered_map<int32_t, std::string> upperBounds = {};
+      if (deleteFile.has_upperbounds()) {
+        for (auto kvIdx = 0; kvIdx < deleteFile.upperbounds().key_values_size(); kvIdx++) {
+          auto kv = deleteFile.upperbounds().key_values(kvIdx);
+          upperBounds[kv.key()] = kv.value();
+        }
       }
       deletes.emplace_back(IcebergDeleteFile(
-          fileContent, deleteFile.filepath(), format, deleteFile.recordcount(), deleteFile.filesize()));
+          fileContent,
+          deleteFile.filepath(),
+          format,
+          deleteFile.recordcount(),
+          deleteFile.filesize(),
+          equalityFieldIds,
+          lowerBounds,
+          upperBounds));
     }
     icebergSplitInfo->deleteFilesVec.emplace_back(deletes);
   } else {

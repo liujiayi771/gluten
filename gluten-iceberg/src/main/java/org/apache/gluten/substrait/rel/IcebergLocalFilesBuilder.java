@@ -17,6 +17,7 @@
 package org.apache.gluten.substrait.rel;
 
 import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.Schema;
 
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,8 @@ public class IcebergLocalFilesBuilder {
       List<Map<String, String>> partitionColumns,
       LocalFilesNode.ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      List<List<DeleteFile>> deleteFilesList) {
+      List<List<DeleteFile>> deleteFilesList,
+      Schema schema) {
     return new IcebergLocalFilesNode(
         index,
         paths,
@@ -39,6 +41,7 @@ public class IcebergLocalFilesBuilder {
         partitionColumns,
         fileFormat,
         preferredLocations,
-        deleteFilesList);
+        deleteFilesList,
+        schema);
   }
 }

@@ -46,6 +46,7 @@ object GlutenIcebergSourceUtil {
       val partitionColumns = new JArrayList[JMap[String, String]]()
       val deleteFilesList = new JArrayList[JList[DeleteFile]]()
       var fileFormat = ReadFileFormat.UnknownFormat
+      var schema: Schema = null
 
       val tasks = partition.taskGroup[ScanTask]().tasks().asScala
       asFileScanTask(tasks.toList).foreach {
@@ -57,6 +58,9 @@ object GlutenIcebergSourceUtil {
           partitionColumns.add(getPartitionColumns(task, readPartitionSchema))
           deleteFilesList.add(task.deletes())
           val currentFileFormat = convertFileFormat(task.file().format())
+          if (schema == null) {
+            schema = task.schema()
+          }
           if (fileFormat == ReadFileFormat.UnknownFormat) {
             fileFormat = currentFileFormat
           } else if (fileFormat != currentFileFormat) {
@@ -76,7 +80,8 @@ object GlutenIcebergSourceUtil {
         partitionColumns,
         fileFormat,
         preferredLoc.toList.asJava,
-        deleteFilesList
+        deleteFilesList,
+        schema
       )
     case _ =>
       throw new UnsupportedOperationException("Only support iceberg SparkInputPartition.")

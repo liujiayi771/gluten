@@ -20,6 +20,9 @@ import org.apache.gluten.GlutenConfig;
 
 import io.substrait.proto.ReadRel;
 import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.spark.source.TypeUtil$;
+import org.apache.iceberg.types.Conversions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,6 +31,7 @@ import java.util.Map;
 
 public class IcebergLocalFilesNode extends LocalFilesNode {
   private final List<List<DeleteFile>> deleteFilesList;
+  private final Schema schema;
 
   IcebergLocalFilesNode(
       Integer index,
@@ -37,7 +41,8 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
       List<Map<String, String>> partitionColumns,
       ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      List<List<DeleteFile>> deleteFilesList) {
+      List<List<DeleteFile>> deleteFilesList,
+      Schema schema) {
     super(
         index,
         paths,
@@ -51,6 +56,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         preferredLocations,
         new HashMap<>());
     this.deleteFilesList = deleteFilesList;
+    this.schema = schema;
   }
 
   @Override
@@ -117,6 +123,46 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
           throw new UnsupportedOperationException(
               "Unsupported format " + delete.format().name() + " for delete file.");
       }
+      if (delete.equalityFieldIds() != null && !delete.equalityFieldIds().isEmpty()) {
+        deleteFileBuilder.addAllEqualityFieldIds(delete.equalityFieldIds());
+      }
+      ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.Builder lowerBoundsBuilder =
+          ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.newBuilder();
+      ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.Builder upperBoundsBuilder =
+          ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.newBuilder();
+      for (int equalityFieldId : delete.equalityFieldIds()) {
+        if ((!delete.lowerBounds().containsKey(equalityFieldId)
+                || delete.lowerBounds().get(equalityFieldId) == null)
+            || (!delete.upperBounds().containsKey(equalityFieldId)
+                || delete.upperBounds().get(equalityFieldId) == null)) {
+          continue;
+        }
+        ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.KeyValue.Builder
+            lowerKeyValue =
+                ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.KeyValue
+                    .newBuilder();
+        lowerKeyValue.setKey(equalityFieldId);
+        lowerKeyValue.setValue(
+            TypeUtil$.MODULE$.getPartitionValueString(
+                schema.findType(equalityFieldId),
+                Conversions.fromByteBuffer(
+                    schema.findType(equalityFieldId), delete.lowerBounds().get(equalityFieldId))));
+        lowerBoundsBuilder.addKeyValues(lowerKeyValue);
+        ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.KeyValue.Builder
+            upperKeyValue =
+                ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Map.KeyValue
+                    .newBuilder();
+        upperKeyValue.setKey(equalityFieldId);
+        upperKeyValue.setValue(
+            TypeUtil$.MODULE$.getPartitionValueString(
+                schema.findType(equalityFieldId),
+                Conversions.fromByteBuffer(
+                    schema.findType(equalityFieldId), delete.upperBounds().get(equalityFieldId))));
+        upperBoundsBuilder.addKeyValues(upperKeyValue);
+        deleteFileBuilder.setLowerBounds(lowerBoundsBuilder);
+        deleteFileBuilder.setUpperBounds(upperBoundsBuilder);
+      }
+
       icebergBuilder.addDeleteFiles(deleteFileBuilder);
     }
     fileBuilder.setIceberg(icebergBuilder);
