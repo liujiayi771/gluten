@@ -170,6 +170,7 @@ object JoinUtils {
       buildOutput,
       validation
     )
+    joinRel
   }
 
   def createProjectRelPostJoinRel(

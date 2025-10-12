@@ -18,10 +18,12 @@ package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
-
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression, WindowExpression}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, LeftOuter, RightOuter}
 import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin}
 import org.apache.spark.sql.execution.window.WindowExec
 
 import scala.collection.mutable.ArrayBuffer
@@ -38,6 +40,7 @@ object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
       case _: BaseAggregateExec => true
       case _: WindowExec => true
       case _: GenerateExec => true
+      case _: BaseJoinExec => true
       case _ => false
     }
   }
@@ -116,6 +119,24 @@ object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
 
     case generate: GenerateExec =>
       BackendsApiManager.getSparkPlanExecApiInstance.genPostProjectForGenerate(generate)
+
+    case join: HashJoin if join.buildSide == BuildLeft =>
+      val joinType = join.joinType match {
+        case LeftOuter => RightOuter
+        case RightOuter => LeftOuter
+        case other => other
+      }
+      val newJoin = copyBaseJoinExec(join)(
+        newLeft = join.right,
+        newRight = join.left,
+        newLeftKeys = join.rightKeys,
+        newRightKeys = join.leftKeys,
+        newJoinType = joinType,
+        buildSide = Some(BuildRight))
+
+      val postProject = ProjectExec(join.output, newJoin)
+      newJoin.logicalLink.foreach(postProject.setLogicalLink)
+      postProject
 
     case _ => plan
   }

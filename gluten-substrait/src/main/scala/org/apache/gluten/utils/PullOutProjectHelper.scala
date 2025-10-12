@@ -21,6 +21,8 @@ import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Complete, Partial}
+import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
@@ -147,14 +149,19 @@ trait PullOutProjectHelper {
       newRight: SparkPlan = join.right,
       newLeftKeys: Seq[Expression] = join.leftKeys,
       newRightKeys: Seq[Expression] = join.rightKeys,
-      newCondition: Option[Expression] = join.condition): BaseJoinExec = join match {
+      newCondition: Option[Expression] = join.condition,
+      newJoinType: JoinType = join.joinType,
+      buildSide: Option[BuildSide] = None): BaseJoinExec = join match {
     case bhj: BroadcastHashJoinExec =>
       val newBhj = bhj.copy(
         left = newLeft,
         right = newRight,
         leftKeys = newLeftKeys,
         rightKeys = newRightKeys,
-        condition = newCondition)
+        condition = newCondition,
+        joinType = newJoinType,
+        buildSide = buildSide.getOrElse(bhj.buildSide)
+      )
       newBhj.copyTagsFrom(bhj)
       newBhj
     case shj: ShuffledHashJoinExec =>
@@ -163,7 +170,10 @@ trait PullOutProjectHelper {
         right = newRight,
         leftKeys = newLeftKeys,
         rightKeys = newRightKeys,
-        condition = newCondition)
+        condition = newCondition,
+        joinType = newJoinType,
+        buildSide = buildSide.getOrElse(shj.buildSide)
+      )
       newShj.copyTagsFrom(shj)
       newShj
     case smj: SortMergeJoinExec =>
@@ -172,7 +182,8 @@ trait PullOutProjectHelper {
         right = newRight,
         leftKeys = newLeftKeys,
         rightKeys = newRightKeys,
-        condition = newCondition)
+        condition = newCondition,
+        joinType = newJoinType)
       newSmj.copyTagsFrom(smj)
       newSmj
     case _ =>

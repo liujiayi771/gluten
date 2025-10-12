@@ -252,7 +252,6 @@ object MetricsUtil extends Logging {
         // JoinRel and CrossRel output two suites of metrics respectively for build and probe.
         // Therefore, fetch one more suite of metrics here.
         operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
-        curMetricsIdx -= 1
         ju.updateJoinMetrics(
           operatorMetrics,
           metrics.getSingleMetrics,

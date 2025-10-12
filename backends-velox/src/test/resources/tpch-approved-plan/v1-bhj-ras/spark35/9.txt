@@ -23,15 +23,15 @@ AdaptiveSparkPlan (100)
                                              :     :     :- ^ ProjectExecTransformer (21)
                                              :     :     :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (20)
                                              :     :     :     :- ^ ProjectExecTransformer (12)
-                                             :     :     :     :  +- ^ BroadcastHashJoinExecTransformer Inner BuildLeft (11)
-                                             :     :     :     :     :- ^ InputIteratorTransformer (8)
-                                             :     :     :     :     :  +- BroadcastQueryStage (6), Statistics(X)
-                                             :     :     :     :     :     +- ColumnarBroadcastExchange (5)
-                                             :     :     :     :     :        +- ^ ProjectExecTransformer (3)
-                                             :     :     :     :     :           +- ^ FilterExecTransformer (2)
-                                             :     :     :     :     :              +- ^ ScanTransformer parquet  (1)
-                                             :     :     :     :     +- ^ FilterExecTransformer (10)
-                                             :     :     :     :        +- ^ ScanTransformer parquet  (9)
+                                             :     :     :     :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (11)
+                                             :     :     :     :     :- ^ FilterExecTransformer (2)
+                                             :     :     :     :     :  +- ^ ScanTransformer parquet  (1)
+                                             :     :     :     :     +- ^ InputIteratorTransformer (10)
+                                             :     :     :     :        +- BroadcastQueryStage (8), Statistics(X)
+                                             :     :     :     :           +- ColumnarBroadcastExchange (7)
+                                             :     :     :     :              +- ^ ProjectExecTransformer (5)
+                                             :     :     :     :                 +- ^ FilterExecTransformer (4)
+                                             :     :     :     :                    +- ^ ScanTransformer parquet  (3)
                                              :     :     :     +- ^ InputIteratorTransformer (19)
                                              :     :     :        +- BroadcastQueryStage (17), Statistics(X)
                                              :     :     :           +- ColumnarBroadcastExchange (16)
@@ -89,58 +89,58 @@ AdaptiveSparkPlan (100)
 
 
 (1) ScanTransformer parquet 
-Output [2]: [p_partkey#X, p_name#X]
-Batched: true
-Location: InMemoryFileIndex [*]
-PushedFilters: [IsNotNull(p_name), StringContains(p_name,green), IsNotNull(p_partkey)]
-ReadSchema: struct<p_partkey:bigint,p_name:string>
-
-(2) FilterExecTransformer
-Input [2]: [p_partkey#X, p_name#X]
-Arguments: ((isnotnull(p_name#X) AND Contains(p_name#X, green)) AND isnotnull(p_partkey#X))
-
-(3) ProjectExecTransformer
-Output [1]: [p_partkey#X]
-Input [2]: [p_partkey#X, p_name#X]
-
-(4) WholeStageCodegenTransformer (X)
-Input [1]: [p_partkey#X]
-Arguments: false
-
-(5) ColumnarBroadcastExchange
-Input [1]: [p_partkey#X]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
-
-(6) BroadcastQueryStage
-Output [1]: [p_partkey#X]
-Arguments: X
-
-(7) InputAdapter
-Input [1]: [p_partkey#X]
-
-(8) InputIteratorTransformer
-Input [1]: [p_partkey#X]
-
-(9) ScanTransformer parquet 
 Output [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
-(10) FilterExecTransformer
+(2) FilterExecTransformer
 Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Arguments: ((isnotnull(l_partkey#X) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
+(3) ScanTransformer parquet 
+Output [2]: [p_partkey#X, p_name#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(p_name), StringContains(p_name,green), IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_name:string>
+
+(4) FilterExecTransformer
+Input [2]: [p_partkey#X, p_name#X]
+Arguments: ((isnotnull(p_name#X) AND Contains(p_name#X, green)) AND isnotnull(p_partkey#X))
+
+(5) ProjectExecTransformer
+Output [1]: [p_partkey#X]
+Input [2]: [p_partkey#X, p_name#X]
+
+(6) WholeStageCodegenTransformer (X)
+Input [1]: [p_partkey#X]
+Arguments: false
+
+(7) ColumnarBroadcastExchange
+Input [1]: [p_partkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(8) BroadcastQueryStage
+Output [1]: [p_partkey#X]
+Arguments: X
+
+(9) InputAdapter
+Input [1]: [p_partkey#X]
+
+(10) InputIteratorTransformer
+Input [1]: [p_partkey#X]
+
 (11) BroadcastHashJoinExecTransformer
-Left keys [1]: [p_partkey#X]
-Right keys [1]: [l_partkey#X]
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
 Join type: Inner
 Join condition: None
 
 (12) ProjectExecTransformer
 Output [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
-Input [7]: [p_partkey#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+Input [7]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, p_partkey#X]
 
 (13) ScanTransformer parquet 
 Output [2]: [s_suppkey#X, s_nationkey#X]

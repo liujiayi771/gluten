@@ -36,8 +36,6 @@ trait JoinMetricsUpdater extends MetricsUpdater {
 
 abstract class JoinMetricsUpdaterBase(val metrics: Map[String, SQLMetric])
   extends JoinMetricsUpdater {
-  val postProjectionCpuCount: SQLMetric = metrics("postProjectionCpuCount")
-  val postProjectionWallNanos: SQLMetric = metrics("postProjectionWallNanos")
   val numOutputRows: SQLMetric = metrics("numOutputRows")
   val numOutputVectors: SQLMetric = metrics("numOutputVectors")
   val numOutputBytes: SQLMetric = metrics("numOutputBytes")
@@ -46,13 +44,9 @@ abstract class JoinMetricsUpdaterBase(val metrics: Map[String, SQLMetric])
       joinMetrics: util.ArrayList[OperatorMetrics],
       singleMetrics: SingleMetric,
       joinParams: JoinParams): Unit = {
-    assert(joinParams.postProjectionNeeded)
-    val postProjectMetrics = joinMetrics.remove(0)
-    postProjectionCpuCount += postProjectMetrics.cpuCount
-    postProjectionWallNanos += postProjectMetrics.wallNanos
-    numOutputRows += postProjectMetrics.outputRows
-    numOutputVectors += postProjectMetrics.outputVectors
-    numOutputBytes += postProjectMetrics.outputBytes
+    numOutputRows += joinMetrics.get(0).outputRows
+    numOutputVectors += joinMetrics.get(0).outputVectors
+    numOutputBytes += joinMetrics.get(0).outputBytes
 
     updateJoinMetricsInternal(joinMetrics, joinParams)
   }
@@ -99,12 +93,6 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
   val hashProbeDynamicFiltersProduced: SQLMetric =
     metrics("hashProbeDynamicFiltersProduced")
 
-  val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
-  val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
-
-  val buildPreProjectionCpuCount: SQLMetric = metrics("buildPreProjectionCpuCount")
-  val buildPreProjectionWallNanos: SQLMetric = metrics("buildPreProjectionWallNanos")
-
   val loadLazyVectorTime: SQLMetric = metrics("loadLazyVectorTime")
 
   override protected def updateJoinMetricsInternal(
@@ -145,17 +133,6 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
     hashBuildSpilledFiles += hashBuildMetrics.spilledFiles
     idx += 1
 
-    if (joinParams.buildPreProjectionNeeded) {
-      buildPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      buildPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
-
-    if (joinParams.streamPreProjectionNeeded) {
-      streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
     if (TaskResources.inSparkTask()) {
       SparkMetricsUtil.incMemoryBytesSpilled(
         TaskResources.getLocalTaskContext().taskMetrics(),
@@ -182,11 +159,6 @@ class SortMergeJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
   val peakMemoryBytes: SQLMetric = metrics("peakMemoryBytes")
   val numMemoryAllocations: SQLMetric = metrics("numMemoryAllocations")
 
-  val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
-  val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
-  val bufferPreProjectionCpuCount: SQLMetric = metrics("bufferPreProjectionCpuCount")
-  val bufferPreProjectionWallNanos: SQLMetric = metrics("bufferPreProjectionWallNanos")
-
   override protected def updateJoinMetricsInternal(
       joinMetrics: util.ArrayList[OperatorMetrics],
       joinParams: JoinParams): Unit = {
@@ -197,17 +169,5 @@ class SortMergeJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
     peakMemoryBytes += smjMetrics.peakMemoryBytes
     numMemoryAllocations += smjMetrics.numMemoryAllocations
     idx += 1
-
-    if (joinParams.buildPreProjectionNeeded) {
-      bufferPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      bufferPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
-
-    if (joinParams.streamPreProjectionNeeded) {
-      streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
   }
 }

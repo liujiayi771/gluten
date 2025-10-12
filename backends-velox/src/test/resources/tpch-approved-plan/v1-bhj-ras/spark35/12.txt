@@ -15,15 +15,15 @@ AdaptiveSparkPlan (44)
                                  +- ^ ProjectExecTransformer (14)
                                     +- ^ FlushableHashAggregateExecTransformer (13)
                                        +- ^ ProjectExecTransformer (12)
-                                          +- ^ BroadcastHashJoinExecTransformer Inner BuildLeft (11)
-                                             :- ^ InputIteratorTransformer (7)
-                                             :  +- BroadcastQueryStage (5), Statistics(X)
-                                             :     +- ColumnarBroadcastExchange (4)
-                                             :        +- ^ FilterExecTransformer (2)
-                                             :           +- ^ ScanTransformer parquet  (1)
-                                             +- ^ ProjectExecTransformer (10)
-                                                +- ^ FilterExecTransformer (9)
-                                                   +- ^ ScanTransformer parquet  (8)
+                                          +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (11)
+                                             :- ^ ProjectExecTransformer (3)
+                                             :  +- ^ FilterExecTransformer (2)
+                                             :     +- ^ ScanTransformer parquet  (1)
+                                             +- ^ InputIteratorTransformer (10)
+                                                +- BroadcastQueryStage (8), Statistics(X)
+                                                   +- ColumnarBroadcastExchange (7)
+                                                      +- ^ FilterExecTransformer (5)
+                                                         +- ^ ScanTransformer parquet  (4)
 +- == Initial Plan ==
    Sort (43)
    +- Exchange (42)
@@ -41,58 +41,58 @@ AdaptiveSparkPlan (44)
 
 
 (1) ScanTransformer parquet 
-Output [2]: [o_orderkey#X, o_orderpriority#X]
-Batched: true
-Location: InMemoryFileIndex [*]
-PushedFilters: [IsNotNull(o_orderkey)]
-ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string>
-
-(2) FilterExecTransformer
-Input [2]: [o_orderkey#X, o_orderpriority#X]
-Arguments: isnotnull(o_orderkey#X)
-
-(3) WholeStageCodegenTransformer (X)
-Input [2]: [o_orderkey#X, o_orderpriority#X]
-Arguments: false
-
-(4) ColumnarBroadcastExchange
-Input [2]: [o_orderkey#X, o_orderpriority#X]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
-
-(5) BroadcastQueryStage
-Output [2]: [o_orderkey#X, o_orderpriority#X]
-Arguments: X
-
-(6) InputAdapter
-Input [2]: [o_orderkey#X, o_orderpriority#X]
-
-(7) InputIteratorTransformer
-Input [2]: [o_orderkey#X, o_orderpriority#X]
-
-(8) ScanTransformer parquet 
 Output [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate), IsNotNull(l_shipdate), In(l_shipmode, [MAIL,SHIP]), GreaterThanOrEqual(l_receiptdate,1994-01-01), LessThan(l_receiptdate,1995-01-01), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_shipdate:date,l_commitdate:date,l_receiptdate:date,l_shipmode:string>
 
-(9) FilterExecTransformer
+(2) FilterExecTransformer
 Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
 Arguments: ((((((((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND isnotnull(l_shipdate#X)) AND l_shipmode#X IN (MAIL,SHIP)) AND (l_commitdate#X < l_receiptdate#X)) AND (l_shipdate#X < l_commitdate#X)) AND (l_receiptdate#X >= 1994-01-01)) AND (l_receiptdate#X < 1995-01-01)) AND isnotnull(l_orderkey#X))
 
-(10) ProjectExecTransformer
+(3) ProjectExecTransformer
 Output [2]: [l_orderkey#X, l_shipmode#X]
 Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
 
+(4) ScanTransformer parquet 
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string>
+
+(5) FilterExecTransformer
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+Arguments: isnotnull(o_orderkey#X)
+
+(6) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+Arguments: false
+
+(7) ColumnarBroadcastExchange
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
+
+(8) BroadcastQueryStage
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+Arguments: X
+
+(9) InputAdapter
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+
+(10) InputIteratorTransformer
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+
 (11) BroadcastHashJoinExecTransformer
-Left keys [1]: [o_orderkey#X]
-Right keys [1]: [l_orderkey#X]
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [o_orderkey#X]
 Join type: Inner
 Join condition: None
 
 (12) ProjectExecTransformer
 Output [3]: [l_shipmode#X, CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_X#X, CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_X#X]
-Input [4]: [o_orderkey#X, o_orderpriority#X, l_orderkey#X, l_shipmode#X]
+Input [4]: [l_orderkey#X, l_shipmode#X, o_orderkey#X, o_orderpriority#X]
 
 (13) FlushableHashAggregateExecTransformer
 Input [3]: [l_shipmode#X, _pre_X#X, _pre_X#X]

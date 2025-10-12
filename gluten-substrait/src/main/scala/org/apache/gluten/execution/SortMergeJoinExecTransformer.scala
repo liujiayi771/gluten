@@ -33,7 +33,8 @@ import io.substrait.proto.JoinRel
 trait MergeJoinLikeExecTransformer
   extends BaseJoinExec
   with TransformSupport
-  with ColumnarShuffledJoin {}
+  with ColumnarShuffledJoin
+  with AliasHelper {}
 abstract class SortMergeJoinExecTransformerBase(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -67,7 +68,37 @@ abstract class SortMergeJoinExecTransformerBase(
   }
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] =
-    requiredOrders(leftKeys) :: requiredOrders(rightKeys) :: Nil
+    requiredOrders(left, leftKeys) :: requiredOrders(right, rightKeys) :: Nil
+
+  private def requiredOrders(child: SparkPlan, keys: Seq[Expression]): Seq[SortOrder] = {
+    keys.map {
+      key =>
+        child match {
+          case project: ProjectExecTransformer =>
+            createRequiredSortOrder(key, project.projectList)
+          case InputIteratorTransformer(InputAdapter(r2c: RowToColumnarExecBase)) =>
+            r2c.child match {
+              case project: ProjectExec =>
+                createRequiredSortOrder(key, project.projectList)
+              case _ =>
+                SortOrder(key, Ascending)
+            }
+          case _ =>
+            SortOrder(key, Ascending)
+        }
+    }
+  }
+
+  private def createRequiredSortOrder(
+      key: Expression,
+      projectList: Seq[NamedExpression]): SortOrder = {
+    val aliasMap = getAliasMap(projectList)
+    val sameOrderExpression = key match {
+      case attr: Attribute => aliasMap.get(attr).map(alias => Seq(alias.child)).getOrElse(Seq.empty)
+      case _ => Seq.empty
+    }
+    SortOrder(key, Ascending, sameOrderExpression)
+  }
 
   override def outputOrdering: Seq[SortOrder] = joinType match {
     // For inner like join, orders of both sides keys should be kept.
@@ -198,12 +229,6 @@ abstract class SortMergeJoinExecTransformerBase(
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val joinParams = new JoinParams
-    if (JoinUtils.preProjectionNeeded(leftKeys)) {
-      joinParams.streamPreProjectionNeeded = true
-    }
-    if (JoinUtils.preProjectionNeeded(rightKeys)) {
-      joinParams.buildPreProjectionNeeded = true
-    }
 
     val joinRel = JoinUtils.createJoinRel(
       streamedKeys,

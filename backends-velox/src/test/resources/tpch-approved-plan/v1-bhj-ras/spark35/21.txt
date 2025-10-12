@@ -14,27 +14,27 @@ AdaptiveSparkPlan (92)
                               :- ^ ProjectExecTransformer (38)
                               :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (37)
                               :     :- ^ ProjectExecTransformer (28)
-                              :     :  +- ^ BroadcastHashJoinExecTransformer Inner BuildLeft (27)
-                              :     :     :- ^ InputIteratorTransformer (7)
-                              :     :     :  +- BroadcastQueryStage (5), Statistics(X)
-                              :     :     :     +- ColumnarBroadcastExchange (4)
-                              :     :     :        +- ^ FilterExecTransformer (2)
-                              :     :     :           +- ^ ScanTransformer parquet  (1)
-                              :     :     +- ^ BroadcastHashJoinExecTransformer LeftAnti BuildRight (26)
-                              :     :        :- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (17)
-                              :     :        :  :- ^ ProjectExecTransformer (10)
-                              :     :        :  :  +- ^ FilterExecTransformer (9)
-                              :     :        :  :     +- ^ ScanTransformer parquet  (8)
-                              :     :        :  +- ^ InputIteratorTransformer (16)
-                              :     :        :     +- BroadcastQueryStage (14), Statistics(X)
-                              :     :        :        +- ColumnarBroadcastExchange (13)
-                              :     :        :           +- ^ ScanTransformer parquet  (11)
-                              :     :        +- ^ InputIteratorTransformer (25)
-                              :     :           +- BroadcastQueryStage (23), Statistics(X)
-                              :     :              +- ColumnarBroadcastExchange (22)
-                              :     :                 +- ^ ProjectExecTransformer (20)
-                              :     :                    +- ^ FilterExecTransformer (19)
-                              :     :                       +- ^ ScanTransformer parquet  (18)
+                              :     :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (27)
+                              :     :     :- ^ BroadcastHashJoinExecTransformer LeftAnti BuildRight (19)
+                              :     :     :  :- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (10)
+                              :     :     :  :  :- ^ ProjectExecTransformer (3)
+                              :     :     :  :  :  +- ^ FilterExecTransformer (2)
+                              :     :     :  :  :     +- ^ ScanTransformer parquet  (1)
+                              :     :     :  :  +- ^ InputIteratorTransformer (9)
+                              :     :     :  :     +- BroadcastQueryStage (7), Statistics(X)
+                              :     :     :  :        +- ColumnarBroadcastExchange (6)
+                              :     :     :  :           +- ^ ScanTransformer parquet  (4)
+                              :     :     :  +- ^ InputIteratorTransformer (18)
+                              :     :     :     +- BroadcastQueryStage (16), Statistics(X)
+                              :     :     :        +- ColumnarBroadcastExchange (15)
+                              :     :     :           +- ^ ProjectExecTransformer (13)
+                              :     :     :              +- ^ FilterExecTransformer (12)
+                              :     :     :                 +- ^ ScanTransformer parquet  (11)
+                              :     :     +- ^ InputIteratorTransformer (26)
+                              :     :        +- BroadcastQueryStage (24), Statistics(X)
+                              :     :           +- ColumnarBroadcastExchange (23)
+                              :     :              +- ^ FilterExecTransformer (21)
+                              :     :                 +- ^ ScanTransformer parquet  (20)
                               :     +- ^ InputIteratorTransformer (36)
                               :        +- BroadcastQueryStage (34), Statistics(X)
                               :           +- ColumnarBroadcastExchange (33)
@@ -83,127 +83,127 @@ AdaptiveSparkPlan (92)
 
 
 (1) ScanTransformer parquet 
-Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Batched: true
-Location: InMemoryFileIndex [*]
-PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
-ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
-
-(2) FilterExecTransformer
-Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
-
-(3) WholeStageCodegenTransformer (X)
-Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: false
-
-(4) ColumnarBroadcastExchange
-Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
-
-(5) BroadcastQueryStage
-Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: X
-
-(6) InputAdapter
-Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-
-(7) InputIteratorTransformer
-Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-
-(8) ScanTransformer parquet 
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(9) FilterExecTransformer
+(2) FilterExecTransformer
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Arguments: ((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X)) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
-(10) ProjectExecTransformer
+(3) ProjectExecTransformer
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 
-(11) ScanTransformer parquet 
+(4) ScanTransformer parquet 
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint>
 
-(12) WholeStageCodegenTransformer (X)
+(5) WholeStageCodegenTransformer (X)
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
 
-(13) ColumnarBroadcastExchange
+(6) ColumnarBroadcastExchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(14) BroadcastQueryStage
+(7) BroadcastQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: X
 
-(15) InputAdapter
+(8) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
 
-(16) InputIteratorTransformer
+(9) InputIteratorTransformer
 Input [2]: [l_orderkey#X, l_suppkey#X]
 
-(17) BroadcastHashJoinExecTransformer
+(10) BroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
-(18) ScanTransformer parquet 
+(11) ScanTransformer parquet 
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(19) FilterExecTransformer
+(12) FilterExecTransformer
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Arguments: ((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X))
 
-(20) ProjectExecTransformer
+(13) ProjectExecTransformer
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 
-(21) WholeStageCodegenTransformer (X)
+(14) WholeStageCodegenTransformer (X)
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
 
-(22) ColumnarBroadcastExchange
+(15) ColumnarBroadcastExchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(23) BroadcastQueryStage
+(16) BroadcastQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: X
 
-(24) InputAdapter
+(17) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
 
-(25) InputIteratorTransformer
+(18) InputIteratorTransformer
 Input [2]: [l_orderkey#X, l_suppkey#X]
 
-(26) BroadcastHashJoinExecTransformer
+(19) BroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftAnti
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
+(20) ScanTransformer parquet 
+Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
+
+(21) FilterExecTransformer
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
+
+(22) WholeStageCodegenTransformer (X)
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: false
+
+(23) ColumnarBroadcastExchange
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
+
+(24) BroadcastQueryStage
+Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: X
+
+(25) InputAdapter
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+
+(26) InputIteratorTransformer
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+
 (27) BroadcastHashJoinExecTransformer
-Left keys [1]: [s_suppkey#X]
-Right keys [1]: [l_suppkey#X]
+Left keys [1]: [l_suppkey#X]
+Right keys [1]: [s_suppkey#X]
 Join type: Inner
 Join condition: None
 
 (28) ProjectExecTransformer
 Output [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
-Input [5]: [s_suppkey#X, s_name#X, s_nationkey#X, l_orderkey#X, l_suppkey#X]
+Input [5]: [l_orderkey#X, l_suppkey#X, s_suppkey#X, s_name#X, s_nationkey#X]
 
 (29) ScanTransformer parquet 
 Output [2]: [o_orderkey#X, o_orderstatus#X]

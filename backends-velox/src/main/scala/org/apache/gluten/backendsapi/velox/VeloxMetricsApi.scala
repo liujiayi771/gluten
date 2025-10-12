@@ -614,24 +614,6 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
         sparkContext,
         "number of hash probe dynamic filters produced"),
-      "streamPreProjectionCpuCount" -> SQLMetrics.createMetric(
-        sparkContext,
-        "stream preProject cpu wall time count"),
-      "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "time of stream preProjection"),
-      "buildPreProjectionCpuCount" -> SQLMetrics.createMetric(
-        sparkContext,
-        "preProject cpu wall time count"),
-      "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "time to build preProjection"),
-      "postProjectionCpuCount" -> SQLMetrics.createMetric(
-        sparkContext,
-        "postProject cpu wall time count"),
-      "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "time of postProjection"),
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
       "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),

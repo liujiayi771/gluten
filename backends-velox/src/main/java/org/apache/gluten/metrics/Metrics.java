@@ -153,7 +153,7 @@ public class Metrics implements IMetrics {
   }
 
   public OperatorMetrics getOperatorMetrics(int index) {
-    if (index >= inputRows.length) {
+    if (index >= inputRows.length || index < 0) {
       throw new GlutenException("Invalid index.");
     }
 

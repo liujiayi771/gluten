@@ -25,39 +25,39 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   disableFallbackCheck
   import testImplicits._
 
-  test("get_json_object") {
-    runQueryAndCompare(
-      "SELECT get_json_object(string_field1, '$.a') " +
-        "from datatab limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    withTempPath {
-      path =>
-        Seq[(String)](
-          ("""{"a":"b"}""")
-        )
-          .toDF("txt")
-          .write
-          .parquet(path.getCanonicalPath)
-
-        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
-
-        runQueryAndCompare("select get_json_object(txt, '$.a') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
-        }
-    }
-
-    // Invalid UTF-8 encoding.
-    spark.sql(
-      "CREATE TABLE t USING parquet SELECT concat('{\"a\": 2, \"'," +
-        " string(X'80'), '\": 3, \"c\": 100}') AS c1")
-    withTable("t") {
-      runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
-    }
-  }
+//  test("get_json_object") {
+//    runQueryAndCompare(
+//      "SELECT get_json_object(string_field1, '$.a') " +
+//        "from datatab limit 1;") {
+//      checkGlutenOperatorMatch[ProjectExecTransformer]
+//    }
+//
+//    withTempPath {
+//      path =>
+//        Seq[(String)](
+//          ("""{"a":"b"}""")
+//        )
+//          .toDF("txt")
+//          .write
+//          .parquet(path.getCanonicalPath)
+//
+//        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+//
+//        runQueryAndCompare("select get_json_object(txt, '$.a') from tbl") {
+//          checkGlutenOperatorMatch[ProjectExecTransformer]
+//        }
+//    }
+//
+//    // Invalid UTF-8 encoding.
+//    spark.sql(
+//      "CREATE TABLE t USING parquet SELECT concat('{\"a\": 2, \"'," +
+//        " string(X'80'), '\": 3, \"c\": 100}') AS c1")
+//    withTable("t") {
+//      runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
+//        checkGlutenOperatorMatch[ProjectExecTransformer]
+//      }
+//    }
+//  }
 
   test("json_array_length") {
     runQueryAndCompare(

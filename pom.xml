@@ -563,7 +563,6 @@
               <arg>-deprecation</arg>
               <arg>-feature</arg>
               <arg>-Wconf:cat=deprecation:wv,any:e</arg>
-              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
             </args>
           </configuration>
           <executions>

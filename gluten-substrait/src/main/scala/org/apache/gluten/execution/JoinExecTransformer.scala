@@ -91,10 +91,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
 
   // Hint substrait to switch the left and right,
   // since we assume always build right side in substrait.
-  protected lazy val needSwitchChildren: Boolean = joinBuildSide match {
-    case BuildLeft => true
-    case BuildRight => false
-  }
+  protected lazy val needSwitchChildren: Boolean = false
 
   lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
     (left, right)
@@ -218,13 +215,6 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val joinParams = new JoinParams
-    if (JoinUtils.preProjectionNeeded(streamedKeyExprs)) {
-      joinParams.streamPreProjectionNeeded = true
-    }
-    if (JoinUtils.preProjectionNeeded(buildKeyExprs)) {
-      joinParams.buildPreProjectionNeeded = true
-    }
-
     if (condition.isDefined) {
       joinParams.isWithCondition = true
     }

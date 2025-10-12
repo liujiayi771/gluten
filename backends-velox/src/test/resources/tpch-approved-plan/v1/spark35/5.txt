@@ -34,33 +34,33 @@ AdaptiveSparkPlan (156)
                                              :                 :                 :        +- VeloxResizeBatches (39)
                                              :                 :                 :           +- ^ ProjectExecTransformer (37)
                                              :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner BuildLeft (36)
-                                             :                 :                 :                 :- ^ InputIteratorTransformer (26)
-                                             :                 :                 :                 :  +- ShuffleQueryStage (24), Statistics(X)
-                                             :                 :                 :                 :     +- ColumnarExchange (23)
-                                             :                 :                 :                 :        +- VeloxResizeBatches (22)
-                                             :                 :                 :                 :           +- ^ ProjectExecTransformer (20)
-                                             :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner BuildLeft (19)
-                                             :                 :                 :                 :                 :- ^ InputIteratorTransformer (9)
-                                             :                 :                 :                 :                 :  +- ShuffleQueryStage (7), Statistics(X)
-                                             :                 :                 :                 :                 :     +- ColumnarExchange (6)
-                                             :                 :                 :                 :                 :        +- VeloxResizeBatches (5)
-                                             :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (3)
-                                             :                 :                 :                 :                 :              +- ^ FilterExecTransformer (2)
-                                             :                 :                 :                 :                 :                 +- ^ ScanTransformer parquet  (1)
-                                             :                 :                 :                 :                 +- ^ InputIteratorTransformer (18)
-                                             :                 :                 :                 :                    +- ShuffleQueryStage (16), Statistics(X)
-                                             :                 :                 :                 :                       +- ColumnarExchange (15)
-                                             :                 :                 :                 :                          +- VeloxResizeBatches (14)
-                                             :                 :                 :                 :                             +- ^ ProjectExecTransformer (12)
-                                             :                 :                 :                 :                                +- ^ FilterExecTransformer (11)
-                                             :                 :                 :                 :                                   +- ^ ScanTransformer parquet  (10)
+                                             :                 :                 :                 :- ^ InputIteratorTransformer (9)
+                                             :                 :                 :                 :  +- ShuffleQueryStage (7), Statistics(X)
+                                             :                 :                 :                 :     +- ColumnarExchange (6)
+                                             :                 :                 :                 :        +- VeloxResizeBatches (5)
+                                             :                 :                 :                 :           +- ^ ProjectExecTransformer (3)
+                                             :                 :                 :                 :              +- ^ FilterExecTransformer (2)
+                                             :                 :                 :                 :                 +- ^ ScanTransformer parquet  (1)
                                              :                 :                 :                 +- ^ InputIteratorTransformer (35)
                                              :                 :                 :                    +- ShuffleQueryStage (33), Statistics(X)
                                              :                 :                 :                       +- ColumnarExchange (32)
                                              :                 :                 :                          +- VeloxResizeBatches (31)
                                              :                 :                 :                             +- ^ ProjectExecTransformer (29)
-                                             :                 :                 :                                +- ^ FilterExecTransformer (28)
-                                             :                 :                 :                                   +- ^ ScanTransformer parquet  (27)
+                                             :                 :                 :                                +- ^ ShuffledHashJoinExecTransformer Inner BuildLeft (28)
+                                             :                 :                 :                                   :- ^ InputIteratorTransformer (18)
+                                             :                 :                 :                                   :  +- ShuffleQueryStage (16), Statistics(X)
+                                             :                 :                 :                                   :     +- ColumnarExchange (15)
+                                             :                 :                 :                                   :        +- VeloxResizeBatches (14)
+                                             :                 :                 :                                   :           +- ^ ProjectExecTransformer (12)
+                                             :                 :                 :                                   :              +- ^ FilterExecTransformer (11)
+                                             :                 :                 :                                   :                 +- ^ ScanTransformer parquet  (10)
+                                             :                 :                 :                                   +- ^ InputIteratorTransformer (27)
+                                             :                 :                 :                                      +- ShuffleQueryStage (25), Statistics(X)
+                                             :                 :                 :                                         +- ColumnarExchange (24)
+                                             :                 :                 :                                            +- VeloxResizeBatches (23)
+                                             :                 :                 :                                               +- ^ ProjectExecTransformer (21)
+                                             :                 :                 :                                                  +- ^ FilterExecTransformer (20)
+                                             :                 :                 :                                                     +- ^ ScanTransformer parquet  (19)
                                              :                 :                 +- ^ InputIteratorTransformer (52)
                                              :                 :                    +- ShuffleQueryStage (50), Statistics(X)
                                              :                 :                       +- ColumnarExchange (49)
@@ -135,41 +135,41 @@ AdaptiveSparkPlan (156)
 
 
 (1) ScanTransformer parquet 
-Output [2]: [c_custkey#X, c_nationkey#X]
+Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [*]
-PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
-ReadSchema: struct<c_custkey:bigint,c_nationkey:bigint>
+PushedFilters: [IsNotNull(l_orderkey), IsNotNull(l_suppkey)]
+ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
 (2) FilterExecTransformer
-Input [2]: [c_custkey#X, c_nationkey#X]
-Arguments: (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
+Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Arguments: (isnotnull(l_orderkey#X) AND isnotnull(l_suppkey#X))
 
 (3) ProjectExecTransformer
-Output [3]: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, c_nationkey#X]
-Input [2]: [c_custkey#X, c_nationkey#X]
+Output [5]: [hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
 (4) WholeStageCodegenTransformer (X)
-Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
+Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: false
 
 (5) VeloxResizeBatches
-Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
+Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: X, X
 
 (6) ColumnarExchange
-Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
-Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
+Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (7) ShuffleQueryStage
-Output [2]: [c_custkey#X, c_nationkey#X]
+Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: X
 
 (8) InputAdapter
-Input [2]: [c_custkey#X, c_nationkey#X]
+Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
 (9) InputIteratorTransformer
-Input [2]: [c_custkey#X, c_nationkey#X]
+Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
 (10) ScanTransformer parquet 
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
@@ -208,84 +208,84 @@ Input [2]: [o_orderkey#X, o_custkey#X]
 (18) InputIteratorTransformer
 Input [2]: [o_orderkey#X, o_custkey#X]
 
-(19) ShuffledHashJoinExecTransformer
-Left keys [1]: [c_custkey#X]
-Right keys [1]: [o_custkey#X]
+(19) ScanTransformer parquet 
+Output [2]: [c_custkey#X, c_nationkey#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
+ReadSchema: struct<c_custkey:bigint,c_nationkey:bigint>
+
+(20) FilterExecTransformer
+Input [2]: [c_custkey#X, c_nationkey#X]
+Arguments: (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
+
+(21) ProjectExecTransformer
+Output [3]: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, c_nationkey#X]
+Input [2]: [c_custkey#X, c_nationkey#X]
+
+(22) WholeStageCodegenTransformer (X)
+Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
+Arguments: false
+
+(23) VeloxResizeBatches
+Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
+Arguments: X, X
+
+(24) ColumnarExchange
+Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
+Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
+
+(25) ShuffleQueryStage
+Output [2]: [c_custkey#X, c_nationkey#X]
+Arguments: X
+
+(26) InputAdapter
+Input [2]: [c_custkey#X, c_nationkey#X]
+
+(27) InputIteratorTransformer
+Input [2]: [c_custkey#X, c_nationkey#X]
+
+(28) ShuffledHashJoinExecTransformer
+Left keys [1]: [o_custkey#X]
+Right keys [1]: [c_custkey#X]
 Join type: Inner
 Join condition: None
 
-(20) ProjectExecTransformer
-Output [3]: [hash(o_orderkey#X, 42) AS hash_partition_key#X, c_nationkey#X, o_orderkey#X]
-Input [4]: [c_custkey#X, c_nationkey#X, o_orderkey#X, o_custkey#X]
-
-(21) WholeStageCodegenTransformer (X)
-Input [3]: [hash_partition_key#X, c_nationkey#X, o_orderkey#X]
-Arguments: false
-
-(22) VeloxResizeBatches
-Input [3]: [hash_partition_key#X, c_nationkey#X, o_orderkey#X]
-Arguments: X, X
-
-(23) ColumnarExchange
-Input [3]: [hash_partition_key#X, c_nationkey#X, o_orderkey#X]
-Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [c_nationkey#X, o_orderkey#X], [plan_id=X], [shuffle_writer_type=hash]
-
-(24) ShuffleQueryStage
-Output [2]: [c_nationkey#X, o_orderkey#X]
-Arguments: X
-
-(25) InputAdapter
-Input [2]: [c_nationkey#X, o_orderkey#X]
-
-(26) InputIteratorTransformer
-Input [2]: [c_nationkey#X, o_orderkey#X]
-
-(27) ScanTransformer parquet 
-Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Batched: true
-Location: InMemoryFileIndex [*]
-PushedFilters: [IsNotNull(l_orderkey), IsNotNull(l_suppkey)]
-ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
-
-(28) FilterExecTransformer
-Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: (isnotnull(l_orderkey#X) AND isnotnull(l_suppkey#X))
-
 (29) ProjectExecTransformer
-Output [5]: [hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Output [3]: [hash(o_orderkey#X, 42) AS hash_partition_key#X, c_nationkey#X, o_orderkey#X]
+Input [4]: [o_orderkey#X, o_custkey#X, c_custkey#X, c_nationkey#X]
 
 (30) WholeStageCodegenTransformer (X)
-Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [3]: [hash_partition_key#X, c_nationkey#X, o_orderkey#X]
 Arguments: false
 
 (31) VeloxResizeBatches
-Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [3]: [hash_partition_key#X, c_nationkey#X, o_orderkey#X]
 Arguments: X, X
 
 (32) ColumnarExchange
-Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], [shuffle_writer_type=hash]
+Input [3]: [hash_partition_key#X, c_nationkey#X, o_orderkey#X]
+Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [c_nationkey#X, o_orderkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (33) ShuffleQueryStage
-Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Output [2]: [c_nationkey#X, o_orderkey#X]
 Arguments: X
 
 (34) InputAdapter
-Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [2]: [c_nationkey#X, o_orderkey#X]
 
 (35) InputIteratorTransformer
-Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [2]: [c_nationkey#X, o_orderkey#X]
 
 (36) ShuffledHashJoinExecTransformer
-Left keys [1]: [o_orderkey#X]
-Right keys [1]: [l_orderkey#X]
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [o_orderkey#X]
 Join type: Inner
 Join condition: None
 
 (37) ProjectExecTransformer
 Output [5]: [hash(l_suppkey#X, c_nationkey#X, 42) AS hash_partition_key#X, c_nationkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Input [6]: [c_nationkey#X, o_orderkey#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [6]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, c_nationkey#X, o_orderkey#X]
 
 (38) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, c_nationkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]

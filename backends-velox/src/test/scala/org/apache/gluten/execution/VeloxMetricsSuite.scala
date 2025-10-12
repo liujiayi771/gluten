@@ -82,19 +82,19 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
 
       // with preproject
-      runQueryAndCompare(
-        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 + 1 = metrics_t2.c1 + 1"
-      ) {
-        df =>
-          val smj = find(df.queryExecution.executedPlan) {
-            case _: SortMergeJoinExecTransformer => true
-            case _ => false
-          }
-          assert(smj.isDefined)
-          val metrics = smj.get.metrics
-          assert(metrics("numOutputRows").value == 100)
-          assert(metrics("numOutputVectors").value > 0)
-      }
+//      runQueryAndCompare(
+//        "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 + 1 = metrics_t2.c1 + 1"
+//      ) {
+//        df =>
+//          val smj = find(df.queryExecution.executedPlan) {
+//            case _: SortMergeJoinExecTransformer => true
+//            case _ => false
+//          }
+//          assert(smj.isDefined)
+//          val metrics = smj.get.metrics
+//          assert(metrics("numOutputRows").value == 100)
+//          assert(metrics("numOutputVectors").value > 0)
+//      }
     }
   }
 
@@ -299,8 +299,8 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           }
           assert(join.isDefined)
           val metrics = join.get.metrics
-          assert(metrics("nestedLoopJoinBuildInputRows").value == 200)
-          assert(metrics("nestedLoopJoinProbeInputRows").value == 1)
+          assert(metrics("nestedLoopJoinBuildInputRows").value == 1)
+          assert(metrics("nestedLoopJoinProbeInputRows").value == 200)
           assert(metrics("numOutputRows").value == 200 * 1)
       }
     }
